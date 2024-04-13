@@ -1,4 +1,4 @@
-use super::Component;
+use super::Port;
 
 #[derive(Default)]
 pub struct Lat {
@@ -9,7 +9,7 @@ impl Lat {
         Self { data: value }
     }
 }
-impl Component for Lat {
+impl Port for Lat {
     fn read(&self) -> u32 {
         self.data
     }

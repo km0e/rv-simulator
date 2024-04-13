@@ -1,17 +1,17 @@
-use super::{Builder, Component, ComponentRef, ComponentShared};
+use super::{Builder, Port, PortRef, PortShared};
 #[derive(Default)]
 pub struct ImmBuilder {
-    inner: ComponentShared<Imm>,
+    inner: PortShared<Imm>,
 }
 impl Builder for ImmBuilder {
-    fn alloc(&mut self, id: usize) -> ComponentRef {
+    fn alloc(&mut self, id: usize) -> PortRef {
         assert_eq!(id, 0);
-        ComponentRef::from(self.inner.clone())
+        PortRef::from(self.inner.clone())
     }
     fn build(self) -> Option<crate::component::ControlRef> {
         None
     }
-    fn connect(&mut self, pin: ComponentRef, id: usize) {
+    fn connect(&mut self, pin: PortRef, id: usize) {
         match id {
             0 => self.inner.borrow_mut().opcode = Some(pin),
             1 => self.inner.borrow_mut().inst = Some(pin),
@@ -22,11 +22,11 @@ impl Builder for ImmBuilder {
 
 #[derive(Default)]
 pub struct Imm {
-    pub opcode: Option<ComponentRef>,
-    pub inst: Option<ComponentRef>,
+    pub opcode: Option<PortRef>,
+    pub inst: Option<PortRef>,
 }
 
-impl Component for Imm {
+impl Port for Imm {
     fn read(&self) -> u32 {
         let input = match self.opcode {
             Some(ref input) => input.read(),

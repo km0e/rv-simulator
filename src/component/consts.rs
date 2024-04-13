@@ -1,16 +1,16 @@
-use super::{lat::Lat, Builder, ComponentRef, ComponentShared, ControlRef};
+use super::{lat::Lat, Builder, ControlRef, PortRef, PortShared};
 
 #[derive(Default)]
 pub struct ConstsBuilder {
-    data: Vec<ComponentShared<Lat>>,
+    data: Vec<PortShared<Lat>>,
 }
 impl Builder for ConstsBuilder {
-    fn connect(&mut self, pin: ComponentRef, id: usize) {
+    fn connect(&mut self, pin: PortRef, id: usize) {
         unimplemented!()
     }
-    fn alloc(&mut self, id: usize) -> ComponentRef {
+    fn alloc(&mut self, id: usize) -> PortRef {
         assert!(id < self.data.len());
-        ComponentRef::from(self.data[id].clone())
+        PortRef::from(self.data[id].clone())
     }
     fn build(self) -> Option<ControlRef> {
         None
@@ -18,7 +18,7 @@ impl Builder for ConstsBuilder {
 }
 impl ConstsBuilder {
     pub fn push(&mut self, value: u32) {
-        self.data.push(ComponentShared::new(Lat::new(value)));
+        self.data.push(PortShared::new(Lat::new(value)));
     }
 }
 

@@ -1,4 +1,79 @@
-use super::{lat::Lat, Builder, ComponentRef, ComponentShared, Control, ControlRef, ControlShared};
+use std::collections::HashMap;
+
+use super::{lat::Lat, Builder, Control, ControlRef, ControlShared, PortRef, PortShared};
+
+const PAGE_SIZE: usize = 4096;
+//pagefault will allocate a new page
+trait Page {
+    fn get_page(&mut self, page: u32) -> Option<&mut Box<dyn Page>> {
+        unreachable!("DataPage does not have subpage")
+    }
+    fn read(&self, offset: u32, size: u32) -> Vec<u8> {
+        unreachable!("DataPage does not have subpage")
+    }
+    fn write(&mut self, offset: u32, data: &[u8]) {
+        unreachable!("DataPage does not have subpage")
+    }
+}
+
+struct DataPage {
+    data: [u8; PAGE_SIZE],
+}
+impl Page for DataPage {
+    fn read(&self, offset: u32, size: u32) -> Vec<u8> {
+        self.data[offset as usize..(offset + size) as usize].to_vec()
+    }
+    fn write(&mut self, offset: u32, data: &[u8]) {
+        self.data[offset as usize..offset as usize + data.len()].copy_from_slice(data);
+    }
+}
+pub struct DirPage {
+    pub pd2pg: [Option<Box<dyn Page>>; 512],
+}
+const EMPTY_PAGE: std::option::Option<std::boxed::Box<(dyn Page + 'static)>> = None;
+impl Default for DirPage {
+    fn default() -> Self {
+        Self {
+            pd2pg: [EMPTY_PAGE; 512],
+        }
+    }
+}
+impl Page for DirPage {
+    fn get_page(&mut self, page: u32) -> Option<&mut Box<dyn Page>> {
+        if self.pd2pg[page as usize].is_none() {
+            self.pd2pg[page as usize] = Some(Box::new(DataPage {
+                data: [0; PAGE_SIZE],
+            }));
+        }
+        self.pd2pg[page as usize].as_mut()
+    }
+}
+pub enum Alloc {
+    Out = 0,
+}
+impl From<Alloc> for usize {
+    fn from(alloc: Alloc) -> usize {
+        match alloc {
+            Alloc::Out => 0,
+        }
+    }
+}
+pub enum Connect {
+    Address = 0,
+    Input = 1,
+    Write = 2,
+    Read = 3,
+}
+impl From<Connect> for usize {
+    fn from(alloc: Connect) -> usize {
+        match alloc {
+            Connect::Address => 0,
+            Connect::Input => 1,
+            Connect::Write => 2,
+            Connect::Read => 3,
+        }
+    }
+}
 #[derive(Default)]
 pub struct MemBuilder {
     pub inner: ControlShared<Mem>,
@@ -15,19 +90,20 @@ impl MemBuilder {
 }
 impl Builder for MemBuilder {
     // Connect the address and input pin
-    fn connect(&mut self, pin: ComponentRef, id: usize) {
+    fn connect(&mut self, pin: PortRef, id: usize) {
         match id {
             0 => self.inner.borrow_mut().address = Some(pin),
             1 => self.inner.borrow_mut().input = Some(pin),
             2 => self.inner.borrow_mut().write = Some(pin),
+            3 => self.inner.borrow_mut().read = Some(pin),
             _ => panic!("Invalid id"),
         }
     }
     // alloc the id for the memory
     // 0 for address
     // 1 for input
-    fn alloc(&mut self, _: usize) -> ComponentRef {
-        ComponentRef::from(self.inner.borrow().output.clone())
+    fn alloc(&mut self, _: usize) -> PortRef {
+        PortRef::from(self.inner.borrow().output.clone())
     }
     fn build(self) -> Option<ControlRef> {
         Some(ControlRef::from(self.inner.clone()))
@@ -36,44 +112,76 @@ impl Builder for MemBuilder {
 #[derive(Default)]
 pub struct Mem {
     pub id: usize,
-    pub data: Vec<u8>,
-    pub input: Option<ComponentRef>,
-    pub write: Option<ComponentRef>,
-    pub address: Option<ComponentRef>,
+    data: Vec<u8>,
+    stack: Vec<u8>,
+    pub input: Option<PortRef>,
+    pub write: Option<PortRef>,
+    pub read: Option<PortRef>,
+    pub address: Option<PortRef>,
     pub address_cache: usize,
-    pub output: ComponentShared<Lat>,
+    pub output: PortShared<Lat>,
+}
+const STACK_ADDR: u32 = 0x7FFFFFF0;
+impl Mem {
+    // pub fn new() -> Self {
+    //     let mut data = DirPage::default();
+    //     data.pd2pg.iter_mut().for_each(|x| {
+    //         *x = Some(Box::new(DirPage::default()));
+    //     });
+    //     Self {
+    //         data,
+    //         ..Default::default()
+    //     }
+    // }
+    pub fn store(&mut self, data: Vec<u8>) {
+        self.data = data;
+    }
 }
 impl Control for Mem {
     fn rasing_edge(&mut self) {
+        if let Some(address) = self.address.as_ref() {
+            self.address_cache = address.read() as usize;
+        }
         if self.write.as_ref().unwrap().read() == 1 {
-            if let Some(address) = self.address.as_ref() {
-                self.address_cache = address.read() as usize;
-                let arr = self.data.as_mut_slice();
-                let value = self.input.as_ref().unwrap().read();
-                arr[self.address_cache] = (value & 0xff) as u8;
-                arr[self.address_cache + 1] = ((value >> 8) & 0xff) as u8;
-                arr[self.address_cache + 2] = ((value >> 16) & 0xff) as u8;
-                arr[self.address_cache + 3] = ((value >> 24) & 0xff) as u8;
+            let value = self.input.as_ref().unwrap().read();
+
+            let (arr, addr) = if self.address_cache > STACK_ADDR as usize {
+                (&mut self.stack, self.address_cache - STACK_ADDR as usize)
+            } else {
+                (&mut self.data, self.address_cache)
+            };
+            if addr + 4 > arr.len() {
+                arr.resize(addr + 4, 0);
             }
+            arr[addr] = (value & 0xff) as u8;
+            arr[addr + 1] = ((value >> 8) & 0xff) as u8;
+            arr[addr + 2] = ((value >> 16) & 0xff) as u8;
+            arr[addr + 3] = ((value >> 24) & 0xff) as u8;
         }
     }
     fn falling_edge(&mut self) {
-        let arr = self.data.as_slice();
-        self.output.borrow_mut().data = u32::from_ne_bytes([
-            arr[self.address_cache],
-            arr[self.address_cache + 1],
-            arr[self.address_cache + 2],
-            arr[self.address_cache + 3],
-        ]);
+        if self.read.as_ref().unwrap().read() == 1 {
+            let (arr, addr) = if self.address_cache > STACK_ADDR as usize {
+                (&mut self.stack, self.address_cache - STACK_ADDR as usize)
+            } else {
+                (&mut self.data, self.address_cache)
+            };
+            if addr + 4 > arr.len() {
+                arr.resize(addr + 4, 0);
+            }
+            self.output.borrow_mut().data =
+                u32::from_ne_bytes([arr[addr], arr[addr + 1], arr[addr + 2], arr[addr + 3]]);
+        }
+    }
+    fn debug(&self) -> String {
+        format!("mem: {:#X}", self.output.borrow().data)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::component::build::AddBuilder;
-    use crate::component::build::RegBuilder;
-    use crate::component::consts::ConstsBuilder;
+    use crate::component::build::*;
 
     #[test]
     fn test_mem() {
@@ -86,10 +194,12 @@ mod tests {
         ab.connect(constant.alloc(0), 0);
         let mut rb = RegBuilder::new(0);
         rb.connect(ab.alloc(0), 0);
+        rb.connect(constant.alloc(1), RegConnect::Enable.into());
         ab.connect(rb.alloc(0), 0);
         tb.connect(rb.alloc(0), 0);
         tb.connect(constant.alloc(1), 1);
         tb.connect(rb.alloc(0), 2);
+        tb.connect(constant.alloc(0), Connect::Read.into());
         let t = tb.alloc(0);
         let tc = tb.build().unwrap();
         let rc = rb.build().unwrap();
@@ -118,5 +228,6 @@ mod tests {
         tb.connect(constant.alloc(1), 1);
         tb.connect(constant.alloc(2), 2);
         tb.connect(constant.alloc(2), 3);
+        tb.connect(constant.alloc(2), 4);
     }
 }

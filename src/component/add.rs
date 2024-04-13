@@ -1,27 +1,27 @@
 use super::Builder;
-use super::Component;
-use super::ComponentRef;
-use super::ComponentShared;
 use super::ControlRef;
+use super::Port;
+use super::PortRef;
+use super::PortShared;
 
 #[derive(Default)]
 pub struct AddBuilder {
-    pub add: ComponentShared<Add>,
+    pub add: PortShared<Add>,
 }
 impl AddBuilder {
     pub fn new() -> Self {
         Self {
-            add: ComponentShared::new(Add::default()),
+            add: PortShared::new(Add::default()),
         }
     }
 }
 
 impl Builder for AddBuilder {
-    fn connect(&mut self, pin: ComponentRef, _: usize) {
+    fn connect(&mut self, pin: PortRef, _: usize) {
         self.add.borrow_mut().input.push(pin);
     }
-    fn alloc(&mut self, _id: usize) -> ComponentRef {
-        super::ComponentRef::from(self.add.clone())
+    fn alloc(&mut self, _id: usize) -> PortRef {
+        super::PortRef::from(self.add.clone())
     }
     fn build(self) -> Option<ControlRef> {
         None
@@ -30,10 +30,10 @@ impl Builder for AddBuilder {
 
 #[derive(Default)]
 pub struct Add {
-    pub input: Vec<ComponentRef>,
+    pub input: Vec<PortRef>,
 }
 
-impl Component for Add {
+impl Port for Add {
     fn read(&self) -> u32 {
         self.input.iter().map(|x| x.read()).sum()
     }

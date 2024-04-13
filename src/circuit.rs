@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::component::{self, Component, Control};
+use crate::component::{self, Control};
 #[derive(Default)]
 pub struct Circuit {
     id: usize,
@@ -16,6 +16,9 @@ impl Control for Circuit {
         for (_, component) in self.components.iter_mut() {
             component.falling_edge();
         }
+    }
+    fn debug(&self) -> String {
+        "Circuit".to_string()
     }
 }
 impl Circuit {

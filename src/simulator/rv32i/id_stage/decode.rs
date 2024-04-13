@@ -1,4 +1,4 @@
-use super::{BitBuilder, Builder, ComponentRef};
+use super::{BitBuilder, Builder, PortRef};
 pub enum Alloc {
     Rs1 = 0,
     Rs2 = 1,
@@ -43,7 +43,7 @@ impl DecodeBuilder {
     }
 }
 impl Builder for DecodeBuilder {
-    fn alloc(&mut self, id: usize) -> ComponentRef {
+    fn alloc(&mut self, id: usize) -> PortRef {
         match id {
             0 => self.rs1.alloc(0),
             1 => self.rs2.alloc(0),
@@ -55,7 +55,7 @@ impl Builder for DecodeBuilder {
     fn build(self) -> Option<crate::component::ControlRef> {
         None
     }
-    fn connect(&mut self, pin: ComponentRef, id: usize) {
+    fn connect(&mut self, pin: PortRef, id: usize) {
         assert!(id == 0);
         self.rs1.connect(pin.clone(), 0);
         self.rs2.connect(pin.clone(), 0);

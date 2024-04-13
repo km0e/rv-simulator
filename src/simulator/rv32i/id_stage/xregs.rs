@@ -1,6 +1,6 @@
 use crate::component::{Control, ControlRef, ControlShared};
 
-use super::{Builder, ComponentRef, ComponentShared, Lat};
+use super::{Builder, Lat, PortRef, PortShared};
 pub enum Alloc {
     R1Data = 0,
     R2Data = 1,
@@ -32,11 +32,18 @@ impl From<Connect> for usize {
     }
 }
 #[derive(Default)]
-pub struct RegsBuilder {
+pub struct XregsBuilder {
     inner: ControlShared<Regs>,
 }
-impl Builder for RegsBuilder {
-    fn connect(&mut self, pin: ComponentRef, id: usize) {
+impl XregsBuilder {
+    pub fn new(esp: u32) -> Self {
+        Self {
+            inner: ControlShared::new(Regs::new(esp)),
+        }
+    }
+}
+impl Builder for XregsBuilder {
+    fn connect(&mut self, pin: PortRef, id: usize) {
         match id {
             0 => self.inner.borrow_mut().rs1 = Some(pin),
             1 => self.inner.borrow_mut().rs2 = Some(pin),
@@ -46,10 +53,10 @@ impl Builder for RegsBuilder {
             _ => panic!("Invalid id"),
         }
     }
-    fn alloc(&mut self, id: usize) -> ComponentRef {
+    fn alloc(&mut self, id: usize) -> PortRef {
         match id {
-            0 => ComponentRef::from(self.inner.borrow().r1data.clone()),
-            1 => ComponentRef::from(self.inner.borrow().r2data.clone()),
+            0 => PortRef::from(self.inner.borrow().r1data.clone()),
+            1 => PortRef::from(self.inner.borrow().r2data.clone()),
             _ => panic!("Invalid id"),
         }
     }
@@ -59,16 +66,28 @@ impl Builder for RegsBuilder {
 }
 #[derive(Default)]
 pub struct Regs {
-    pub rs1: Option<ComponentRef>,
+    pub rs1: Option<PortRef>,
     pub rs1_val: u32,
-    pub rs2: Option<ComponentRef>,
+    pub rs2: Option<PortRef>,
     pub rs2_val: u32,
-    pub rd: Option<ComponentRef>,
-    pub rd_data: Option<ComponentRef>,
-    pub write: Option<ComponentRef>,
+    pub rd: Option<PortRef>,
+    pub rd_data: Option<PortRef>,
+    pub write: Option<PortRef>,
     pub x: [u32; 32],
-    pub r1data: ComponentShared<Lat>,
-    pub r2data: ComponentShared<Lat>,
+    pub r1data: PortShared<Lat>,
+    pub r2data: PortShared<Lat>,
+}
+impl Regs {
+    pub fn new(esp: u32) -> Self {
+        let mut slf = Self {
+            x: [0; 32],
+            r1data: PortShared::new(Lat::new(0)),
+            r2data: PortShared::new(Lat::new(0)),
+            ..Default::default()
+        };
+        slf.x[2] = esp;
+        slf
+    }
 }
 impl Control for Regs {
     fn rasing_edge(&mut self) {
@@ -104,6 +123,13 @@ impl Control for Regs {
         self.r1data.borrow_mut().data = self.x[self.rs1_val as usize];
         self.r2data.borrow_mut().data = self.x[self.rs2_val as usize];
     }
+    fn debug(&self) -> String {
+        format!(
+            "regs: r1data: {:#X}, r2data: {:#X}",
+            self.r1data.borrow().data,
+            self.r2data.borrow().data
+        )
+    }
 }
 
 #[cfg(test)]
@@ -113,7 +139,7 @@ mod tests {
 
     #[test]
     fn test_regs() {
-        let mut rsb = RegsBuilder::default();
+        let mut rsb = XregsBuilder::default();
         let mut consts = ConstsBuilder::default();
         consts.push(0);
         consts.push(1);

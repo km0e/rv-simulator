@@ -1,0 +1,64 @@
+	.file	"main.c"
+	.option nopic
+	.attribute arch, "rv32i2p0_m2p0"
+	.attribute unaligned_access, 0
+	.attribute stack_align, 16
+	.text
+	.align	2
+	.globl	main
+	.type	main, @function
+main:
+	addi	sp,sp,-432
+	sw	s0,428(sp)
+	addi	s0,sp,432
+	sw	zero,-20(s0)
+	j	.L2
+.L3:
+	lw	a5,-20(s0)
+	slli	a5,a5,2
+	addi	a4,s0,-16
+	add	a5,a4,a5
+	lw	a4,-20(s0)
+	sw	a4,-404(a5)
+	lw	a5,-20(s0)
+	addi	a5,a5,1
+	sw	a5,-20(s0)
+.L2:
+	lw	a4,-20(s0)
+	li	a5,99
+	ble	a4,a5,.L3
+	li	a5,1
+	sw	a5,-20(s0)
+	j	.L4
+.L5:
+	lw	a5,-20(s0)
+	addi	a5,a5,-1
+	slli	a5,a5,2
+	addi	a4,s0,-16
+	add	a5,a4,a5
+	lw	a5,-404(a5)
+	addi	a4,a5,1000
+	lw	a5,-20(s0)
+	slli	a5,a5,2
+	addi	a3,s0,-16
+	add	a5,a3,a5
+	sw	a4,-404(a5)
+	lw	a5,-20(s0)
+	addi	a5,a5,1
+	sw	a5,-20(s0)
+.L4:
+	lw	a4,-20(s0)
+	li	a5,99
+	ble	a4,a5,.L5
+	lw	a4,-20(s0)
+	li	a5,5
+	ble	a4,a5,.L7
+	li	a5,10
+	sw	a5,-220(s0)
+.L7:
+	nop
+	lw	s0,428(sp)
+	addi	sp,sp,432
+	jr	ra
+	.size	main, .-main
+	.ident	"GCC: (SiFive GCC 8.3.0-2020.04.1) 8.3.0"

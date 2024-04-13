@@ -1,12 +1,12 @@
-use super::{Builder, Component, ComponentRef, ComponentShared};
+use super::{Builder, Port, PortRef, PortShared};
 #[derive(Clone)]
 pub struct BitBuilder {
-    pub inner: ComponentShared<Bit>,
+    pub inner: PortShared<Bit>,
 }
 impl BitBuilder {
     pub fn new(interval: (u8, u8)) -> Self {
         Self {
-            inner: ComponentShared::new(Bit {
+            inner: PortShared::new(Bit {
                 interval,
                 data: None,
             }),
@@ -14,14 +14,14 @@ impl BitBuilder {
     }
 }
 impl Builder for BitBuilder {
-    fn alloc(&mut self, id: usize) -> ComponentRef {
+    fn alloc(&mut self, id: usize) -> PortRef {
         assert_eq!(id, 0);
-        ComponentRef::from(self.inner.clone())
+        PortRef::from(self.inner.clone())
     }
     fn build(self) -> Option<super::ControlRef> {
         None
     }
-    fn connect(&mut self, pin: ComponentRef, id: usize) {
+    fn connect(&mut self, pin: PortRef, id: usize) {
         assert_eq!(id, 0);
         self.inner.borrow_mut().data = Some(pin);
     }
@@ -29,10 +29,10 @@ impl Builder for BitBuilder {
 
 pub struct Bit {
     pub interval: (u8, u8), //[]
-    pub data: Option<ComponentRef>,
+    pub data: Option<PortRef>,
 }
 
-impl Component for Bit {
+impl Port for Bit {
     fn read(&self) -> u32 {
         let data = self.data.as_ref().unwrap().read();
         if self.interval.1 - self.interval.0 == 31 {
