@@ -1,9 +1,5 @@
-use super::bomb::Bomb;
-use super::Builder;
-use super::ControlRef;
-use super::Port;
-use super::PortRef;
-use super::PortShared;
+use crate::common::abi::*;
+use crate::common::build::*;
 pub enum Alloc {
     Out = 0,
 }
@@ -30,7 +26,7 @@ impl From<Connect> for usize {
 pub struct MuxBuilder {
     pub inner: PortShared<Mux>,
 }
-impl Builder for MuxBuilder {
+impl PortBuilder for MuxBuilder {
     fn connect(&mut self, pin: PortRef, id: usize) {
         match id {
             0 => self.inner.borrow_mut().select = Some(pin),
@@ -46,9 +42,6 @@ impl Builder for MuxBuilder {
     fn alloc(&mut self, _: usize) -> PortRef {
         PortRef::from(self.inner.clone())
     }
-    fn build(self) -> Option<ControlRef> {
-        None
-    }
 }
 #[derive(Default)]
 pub struct Mux {
@@ -61,11 +54,14 @@ impl Port for Mux {
         self.input[id as usize].read()
     }
 }
-
+pub mod build {
+    pub use super::Alloc as MuxAlloc;
+    pub use super::Connect as MuxConnect;
+    pub use super::MuxBuilder;
+}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::component::consts::ConstsBuilder;
 
     #[test]
     fn test_mux() {

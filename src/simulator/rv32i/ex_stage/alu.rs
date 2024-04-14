@@ -1,5 +1,5 @@
-use super::utils::u2i;
-use crate::component::{Builder, Port, PortRef, PortShared};
+use crate::common::abi::*;
+use crate::common::utils::u2i;
 pub enum Alloc {
     Res = 0,
 }
@@ -28,15 +28,12 @@ impl From<Connect> for usize {
 pub struct AluBuilder {
     inner: PortShared<Alu>,
 }
-impl Builder for AluBuilder {
+impl PortBuilder for AluBuilder {
     fn alloc(&mut self, id: usize) -> PortRef {
         match id {
             0 => PortRef::from(self.inner.clone()),
             _ => panic!("Invalid id"),
         }
-    }
-    fn build(self) -> Option<crate::component::ControlRef> {
-        None
     }
     fn connect(&mut self, pin: PortRef, id: usize) {
         match id {
@@ -63,27 +60,13 @@ impl Port for Alu {
         let i2 = u2i(u2);
         let alu_ctl = self.alu_ctl.as_ref().unwrap().read();
         (match alu_ctl & 0b1 {
-            0 => match (alu_ctl >> 1) & 0b111 {
+            0 => 0,
+            1 => match (alu_ctl >> 1) & 0b111 {
                 0 => match (alu_ctl >> 4) & 0b1 {
                     0 => i1 + i2,
                     1 => i1 - i2,
                     _ => panic!("Invalid ALU control signal"),
                 },
-                1 => i1 << (u2 & 0b11111),
-                2 => (i1 < i2).into(),
-                3 => (u1 < u2).into(),
-                4 => i1 ^ i2,
-                5 => match (alu_ctl >> 4) & 0b1 {
-                    0 => u2i(u1 >> (u2 & 0b11111)),
-                    1 => i1 >> (u2 & 0b11111),
-                    _ => panic!("Invalid ALU control signal"),
-                },
-                6 => i1 | i2,
-                7 => i1 & i2,
-                _ => panic!("Invalid ALU control signal"),
-            },
-            1 => match (alu_ctl >> 1) & 0b111 {
-                0 => i1 + i2,
                 1 => i1 << (u2 & 0b11111),
                 2 => (i1 < i2).into(),
                 3 => (u1 < u2).into(),
@@ -105,8 +88,7 @@ impl Port for Alu {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::component::build::*;
-    use crate::component::Builder;
+    use crate::common::build::*;
     #[test]
     fn test_alu() {
         let mut alub = AluBuilder::default();

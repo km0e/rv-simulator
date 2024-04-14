@@ -1,4 +1,5 @@
-use crate::component::{Builder, Port, PortRef, PortShared};
+use crate::common::abi::*;
+
 pub enum Alloc {
     Forward1 = 0,
     Forward2 = 1,
@@ -36,16 +37,13 @@ pub struct ForwardBuilder {
     pub forward1: PortShared<Forward>,
     pub forward2: PortShared<Forward>,
 }
-impl Builder for ForwardBuilder {
+impl PortBuilder for ForwardBuilder {
     fn alloc(&mut self, id: usize) -> PortRef {
         match id {
             0 => PortRef::from(self.forward1.clone()),
             1 => PortRef::from(self.forward2.clone()),
             _ => panic!("Invalid id"),
         }
-    }
-    fn build(self) -> Option<crate::component::ControlRef> {
-        None
     }
     fn connect(&mut self, pin: PortRef, id: usize) {
         match id {
@@ -126,7 +124,8 @@ impl Port for Forward {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::component::build::*;
+    use crate::common::build::*;
+
     #[allow(clippy::too_many_arguments)]
     fn build_test(
         rs1: u32,

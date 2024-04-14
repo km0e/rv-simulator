@@ -1,4 +1,4 @@
-use super::{Builder, Port, PortRef, PortShared};
+use crate::common::abi::*;
 #[derive(Clone)]
 pub struct BitBuilder {
     pub inner: PortShared<Bit>,
@@ -13,13 +13,10 @@ impl BitBuilder {
         }
     }
 }
-impl Builder for BitBuilder {
+impl PortBuilder for BitBuilder {
     fn alloc(&mut self, id: usize) -> PortRef {
         assert_eq!(id, 0);
         PortRef::from(self.inner.clone())
-    }
-    fn build(self) -> Option<super::ControlRef> {
-        None
     }
     fn connect(&mut self, pin: PortRef, id: usize) {
         assert_eq!(id, 0);
@@ -41,4 +38,9 @@ impl Port for Bit {
         let mask = (1 << (self.interval.1 - self.interval.0 + 1)) - 1;
         (data >> self.interval.0) & mask
     }
+}
+pub mod build {
+    pub use super::Bit as BitAlloc;
+    pub use super::Bit as BitConnect;
+    pub use super::BitBuilder;
 }

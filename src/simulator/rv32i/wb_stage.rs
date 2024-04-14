@@ -1,4 +1,6 @@
-use crate::component::{build::MuxBuilder, Builder, PortRef};
+use crate::common::abi::*;
+use crate::common::build::*;
+
 pub enum Alloc {
     Out = 0,
 }
@@ -30,14 +32,17 @@ pub struct WbStageBuilder {
     pub mux: MuxBuilder,
 }
 
-impl Builder for WbStageBuilder {
+impl ControlBuilder for WbStageBuilder {
+    fn build(self) -> ControlRef {
+        self.mux.build()
+    }
+}
+
+impl PortBuilder for WbStageBuilder {
     fn alloc(&mut self, id: usize) -> PortRef {
         self.mux.alloc(id)
     }
     fn connect(&mut self, pin: PortRef, id: usize) {
         self.mux.connect(pin, id)
-    }
-    fn build(self) -> Option<crate::component::ControlRef> {
-        self.mux.build()
     }
 }

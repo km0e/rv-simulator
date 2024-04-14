@@ -1,9 +1,6 @@
-use std::cell::RefCell;
-use std::rc::Rc;
+use crate::common::abi::*;
+use crate::common::build::*;
 
-use crate::circuit::Circuit;
-use crate::component::{build::*, Control, ControlRef, ControlShared};
-use crate::simulator::asm::{Asm, AsmBuilder, AsmReg, Connect as AsmConnect};
 pub enum Alloc {
     Pc = 0,
     Npc = 1,
@@ -36,11 +33,9 @@ impl From<Connect> for usize {
 pub struct IfStageBuilder {
     pub npc_mux: MuxBuilder,
     pub pc: RegBuilder,
-    pub pc_cache: RegBuilder,
     pub add: AddBuilder,
-    pub npc_cache: RegBuilder,
     pub imem: MemBuilder,
-    pub asm: AsmBuilder,
+    pub asm: AsmMemBuilder,
 }
 impl IfStageBuilder {
     pub fn new(entry: u32, instruction_memory: Vec<u8>, asm_mem: Vec<String>) -> Self {
@@ -74,16 +69,8 @@ impl IfStageBuilder {
         if_imem.connect(consts.alloc(2), MemConnect::Write.into());
         if_imem.connect(consts.alloc(3), MemConnect::Read.into());
         //cache
-        let mut if_npc_cache = RegBuilder::new(0);
-        if_npc_cache.connect(if_add.alloc(0), RegConnect::In.into());
-        if_npc_cache.connect(consts.alloc(3), RegConnect::Enable.into());
-        if_npc_cache.connect(consts.alloc(2), RegConnect::Clear.into());
-        let mut if_pc_cache = RegBuilder::new(0);
-        if_pc_cache.connect(if_pc.alloc(RegAlloc::Out.into()), RegConnect::In.into());
-        if_pc_cache.connect(consts.alloc(3), RegConnect::Enable.into());
-        if_pc_cache.connect(consts.alloc(2), RegConnect::Clear.into());
         //asm
-        let mut if_asm = AsmBuilder::new(asm_mem);
+        let mut if_asm = AsmMemBuilder::new(asm_mem);
         if_asm.connect(
             if_pc.alloc(RegAlloc::Out.into()),
             AsmConnect::Address.into(),
@@ -94,22 +81,34 @@ impl IfStageBuilder {
             pc: if_pc,
             add: if_add,
             imem: if_imem,
-            pc_cache: if_pc_cache,
-            npc_cache: if_npc_cache,
             asm: if_asm,
         }
     }
-    pub fn alloc_asm(&mut self) -> Rc<RefCell<AsmReg>> {
-        self.asm.alloc_asm()
+}
+impl AsmBuilder for IfStageBuilder {
+    fn asm_alloc(&self, id: usize) -> AsmPortRef {
+        self.asm.asm_alloc(id)
+    }
+    fn asm_connect(&mut self, _pin: AsmPortRef, _id: usize) {
+        panic!("IfStageBuilder: don't need to asm connect")
     }
 }
-impl Builder for IfStageBuilder {
+impl ControlBuilder for IfStageBuilder {
+    fn build(self) -> ControlRef {
+        self.npc_mux.build();
+        self.add.build();
+        Some(ControlRef::from(ControlShared::new(IfStage {
+            pc: self.pc.build().unwrap(),
+            imem: self.imem.build().unwrap(),
+            asm: self.asm.build(),
+        })))
+    }
+}
+impl PortBuilder for IfStageBuilder {
     fn alloc(&mut self, id: usize) -> PortRef {
         match id {
-            // 0 => self.pc.alloc(0),
-            // 1 => self.add.alloc(0),
-            0 => self.pc_cache.alloc(0),
-            1 => self.npc_cache.alloc(0),
+            0 => self.pc.alloc(0),
+            1 => self.add.alloc(0),
             2 => self.imem.alloc(0),
             _ => panic!("Invalid id"),
         }
@@ -122,40 +121,24 @@ impl Builder for IfStageBuilder {
             _ => panic!("Invalid id"),
         }
     }
-    fn build(self) -> Option<ControlRef> {
-        self.npc_mux.build();
-        self.add.build();
-        Some(ControlRef::from(ControlShared::new(IfStage {
-            pc: self.pc.build().unwrap(),
-            imem: self.imem.build().unwrap(),
-            pc_cache: self.pc_cache.build().unwrap(),
-            npc_cache: self.npc_cache.build().unwrap(),
-            asm: self.asm.inner.into(),
-        })))
-    }
 }
 pub struct IfStage {
     pub pc: ControlRef,
     pub imem: ControlRef,
-    pub pc_cache: ControlRef,
-    pub npc_cache: ControlRef,
     pub asm: ControlRef,
 }
 impl Control for IfStage {
     fn rasing_edge(&mut self) {
         self.pc.rasing_edge();
-        self.pc_cache.rasing_edge();
-        self.npc_cache.rasing_edge();
         self.imem.rasing_edge();
         self.asm.rasing_edge();
     }
     fn falling_edge(&mut self) {
         self.pc.falling_edge();
-        self.pc_cache.falling_edge();
-        self.npc_cache.falling_edge();
         self.imem.falling_edge();
         self.asm.falling_edge();
     }
+    #[cfg(debug_assertions)]
     fn debug(&self) -> String {
         format!(
             "IfStage\npc: {}\nimem: {}",

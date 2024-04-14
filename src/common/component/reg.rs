@@ -1,5 +1,5 @@
-use super::lat::Lat;
-use super::{Builder, Control, ControlRef, ControlShared, PortRef, PortShared};
+use crate::common::abi::*;
+use crate::common::build::*;
 pub enum Alloc {
     Out = 0,
 }
@@ -40,7 +40,12 @@ impl RegBuilder {
         }
     }
 }
-impl Builder for RegBuilder {
+impl ControlBuilder for RegBuilder {
+    fn build(self) -> Box<dyn Control> {
+        Some(self.inner.clone())
+    }
+}
+impl PortBuilder for RegBuilder {
     fn connect(&mut self, pin: PortRef, id: usize) {
         match id {
             0 => self.inner.borrow_mut().in_ = Some(pin),
@@ -52,14 +57,11 @@ impl Builder for RegBuilder {
     fn alloc(&mut self, _: usize) -> PortRef {
         PortRef::from(self.inner.borrow().output.clone())
     }
-    fn build(self) -> Option<ControlRef> {
-        Some(ControlRef::from(self.inner.clone()))
-    }
 }
 
 #[derive(Default)]
 pub struct Reg {
-    pub in_: Option<PortRef>,
+    pub in_: Option<Shared<dyn Port>>,
     pub enable: Option<PortRef>,
     pub clear: Option<PortRef>,
     pub data: u32,
@@ -93,17 +95,20 @@ impl Control for Reg {
         }
         self.output.borrow_mut().data = self.data;
     }
+    #[cfg(debug_assertions)]
     fn debug(&self) -> String {
         format!("{:X}", self.output.borrow().data)
     }
 }
+pub mod build {
+    pub use super::Alloc as RegAlloc;
+    pub use super::Connect as RegConnect;
+    pub use super::RegBuilder;
+}
 
 #[cfg(test)]
 mod tests {
-    use std::borrow::BorrowMut;
-
     use super::*;
-    use crate::component::consts::ConstsBuilder;
 
     #[test]
     fn test_reg() {

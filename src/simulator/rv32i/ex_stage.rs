@@ -1,10 +1,10 @@
-use crate::component::{build::*, Builder, PortRef};
+use crate::common::abi::*;
+use crate::common::build::*;
 
 use self::{alu::AluBuilder, branch::BranchBuilder, forward::ForwardBuilder};
 mod alu;
 mod branch;
 mod forward;
-use super::utils;
 use alu::Alloc as AluAlloc;
 use alu::Connect as AluConnect;
 use branch::Alloc as BranchAlloc;
@@ -113,7 +113,7 @@ impl ExStageBuilder {
         }
     }
 }
-impl Builder for ExStageBuilder {
+impl PortBuilder for ExStageBuilder {
     fn alloc(&mut self, id: usize) -> PortRef {
         match id {
             0 => self.branch.alloc(BranchAlloc::BK.into()),
@@ -153,15 +153,11 @@ impl Builder for ExStageBuilder {
             _ => panic!("Invalid id"),
         }
     }
-    fn build(self) -> Option<crate::component::ControlRef> {
-        None
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::component::build::*;
     pub struct TestConnect {
         pub jal_: u32,
         pub branch_sel: u32,

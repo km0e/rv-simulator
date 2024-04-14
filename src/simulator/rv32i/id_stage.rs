@@ -1,7 +1,6 @@
-use crate::circuit::Circuit;
-use crate::component::{build::*, ControlRef};
+use crate::common::abi::*;
 
-use self::control::ControlBuilder;
+use self::control::CtrlSigBuilder;
 use self::decode::DecodeBuilder;
 use self::imm::ImmBuilder;
 use self::xregs::XregsBuilder;
@@ -73,7 +72,7 @@ impl From<Connect> for usize {
     }
 }
 pub struct IdStageBuilder {
-    pub control: ControlBuilder,
+    pub control: CtrlSigBuilder,
     pub decode: DecodeBuilder,
     pub imm: ImmBuilder,
     pub xregs: XregsBuilder,
@@ -88,10 +87,10 @@ impl IdStageBuilder {
         id_imm.connect(id_decode.alloc(3), 0);
         // set up regs
         let mut id_regs = XregsBuilder::new(esp);
-        id_regs.connect(id_decode.alloc(0), 0);
-        id_regs.connect(id_decode.alloc(1), 1);
+        id_regs.connect(id_decode.alloc(0), RegsConnect::Rs1.into());
+        id_regs.connect(id_decode.alloc(1), RegsConnect::Rs2.into());
         // set up control
-        let mut id_control = ControlBuilder::new();
+        let mut id_control = CtrlSigBuilder::new();
         id_control.connect(id_decode.alloc(DecodeAlloc::Opcode.into()), 0);
         IdStageBuilder {
             control: id_control,
@@ -101,7 +100,7 @@ impl IdStageBuilder {
         }
     }
 }
-impl Builder for IdStageBuilder {
+impl PortBuilder for IdStageBuilder {
     fn alloc(&mut self, id: usize) -> PortRef {
         match id {
             0 => self.decode.alloc(DecodeAlloc::Rs1.into()),
@@ -136,167 +135,145 @@ impl Builder for IdStageBuilder {
             _ => panic!("Invalid id"),
         }
     }
-    fn build(self) -> Option<ControlRef> {
+}
+impl ControlBuilder for IdStageBuilder {
+    fn build(self) -> ControlRef {
         self.xregs.build()
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::component::build::*;
+    use crate::common::build::*;
+
+    struct TestConnect {
+        pub inst: u32,
+        pub rd: u32,
+        pub rd_data: u32,
+        pub reg_write: u32,
+    }
+    struct TestAlloc {
+        pub rs1: u32,
+        pub rs2: u32,
+        pub rd: u32,
+        pub opcode: u32,
+        pub imm: u32,
+        pub branch_type: u32,
+        pub alu_ctrl: u32,
+        pub imm_sel: u32,
+        pub pc_sel: u32,
+        pub branch_en: u32,
+        pub jal_: u32,
+        pub mem_write: u32,
+        pub wb_sel: u32,
+        pub reg_write: u32,
+        pub rs1_data: u32,
+        pub rs2_data: u32,
+        pub load: u32,
+    }
+    fn run_test(test_alloc: TestAlloc, test_connect: TestConnect) {
+        let mut idb = IdStageBuilder::new(0x7ffffff0);
+        let mut constb = ConstsBuilder::default();
+        constb.push(test_connect.inst);
+        constb.push(test_connect.rd);
+        constb.push(test_connect.rd_data);
+        constb.push(test_connect.reg_write);
+        idb.connect(constb.alloc(0), Connect::Inst.into());
+        idb.connect(constb.alloc(1), Connect::Rd.into());
+        idb.connect(constb.alloc(2), Connect::RdData.into());
+        idb.connect(constb.alloc(3), Connect::RegWrite.into());
+        let rs1 = idb.alloc(Alloc::Rs1.into());
+        let rs2 = idb.alloc(Alloc::Rs2.into());
+        let rd = idb.alloc(Alloc::Rd.into());
+        let opcode = idb.alloc(Alloc::Opcode.into());
+        let imm = idb.alloc(Alloc::Imm.into());
+        let branch_type = idb.alloc(Alloc::BranchType.into());
+        let alu_ctrl = idb.alloc(Alloc::AluCtrl.into());
+        let imm_sel = idb.alloc(Alloc::ImmSel.into());
+        let pc_sel = idb.alloc(Alloc::PcSel.into());
+        let branch_en = idb.alloc(Alloc::BranchEn.into());
+        let jal_ = idb.alloc(Alloc::Jal_.into());
+        let mem_write = idb.alloc(Alloc::MemWrite.into());
+        let wb_sel = idb.alloc(Alloc::WbSel.into());
+        let reg_write = idb.alloc(Alloc::RegWrite.into());
+        let rs1_data = idb.alloc(Alloc::Rs1Data.into());
+        let rs2_data = idb.alloc(Alloc::Rs2Data.into());
+        let load = idb.alloc(Alloc::Load.into());
+        idb.build();
+        assert_eq!(rs1.read(), test_alloc.rs1);
+        assert_eq!(rs2.read(), test_alloc.rs2);
+        assert_eq!(rd.read(), test_alloc.rd);
+        assert_eq!(opcode.read(), test_alloc.opcode);
+        assert_eq!(imm.read(), test_alloc.imm);
+        assert_eq!(branch_type.read(), test_alloc.branch_type);
+        assert_eq!(alu_ctrl.read(), test_alloc.alu_ctrl);
+        assert_eq!(imm_sel.read(), test_alloc.imm_sel);
+        assert_eq!(pc_sel.read(), test_alloc.pc_sel);
+        assert_eq!(branch_en.read(), test_alloc.branch_en);
+        assert_eq!(jal_.read(), test_alloc.jal_);
+        assert_eq!(mem_write.read(), test_alloc.mem_write);
+        assert_eq!(wb_sel.read(), test_alloc.wb_sel);
+        assert_eq!(reg_write.read(), test_alloc.reg_write);
+        assert_eq!(rs1_data.read(), test_alloc.rs1_data);
+        assert_eq!(rs2_data.read(), test_alloc.rs2_data);
+        assert_eq!(load.read(), test_alloc.load);
+    }
+    #[test]
+    fn test_generate_id0() {
+        let test_alloc = TestAlloc {
+            rs1: 2,
+            rs2: 0x10,
+            rd: 0x02,
+            opcode: 0xe5010113,
+            imm: 0xfffffe50,
+            branch_type: 0,
+            alu_ctrl: 1,
+            imm_sel: 1,
+            pc_sel: 0,
+            branch_en: 0,
+            jal_: 0,
+            mem_write: 0,
+            wb_sel: 1,
+            reg_write: 1,
+            rs1_data: 0x7ffffff0,
+            rs2_data: 0,
+            load: 0,
+        };
+        let test_connect = TestConnect {
+            inst: 0xe5010113,
+            rd: 0,
+            rd_data: 0,
+            reg_write: 0,
+        };
+        run_test(test_alloc, test_connect);
+    }
     #[test]
     fn test_generate_id1() {
-        // instruction
-        // sw x8 428(x2)
-        let instruction = 0x1a812623;
-        let mut idb = IdStageBuilder::new(0);
-        let mut constb = ConstsBuilder::default();
-        constb.push(instruction);
-        constb.push(2);
-        constb.push(1);
-        constb.push(1);
-        let rs1 = idb.alloc(Alloc::Rs1.into());
-        let rs2 = idb.alloc(Alloc::Rs2.into());
-        let rd = idb.alloc(Alloc::Rd.into());
-        let opcode = idb.alloc(Alloc::Opcode.into());
-        let imm = idb.alloc(Alloc::Imm.into());
-        let alu_op = idb.alloc(Alloc::AluCtrl.into());
-        let imm_sel = idb.alloc(Alloc::ImmSel.into());
-        let pc_sel = idb.alloc(Alloc::PcSel.into());
-        let branch_sel = idb.alloc(Alloc::BranchEn.into());
-        let mem_write = idb.alloc(Alloc::MemWrite.into());
-        let jal_ = idb.alloc(Alloc::Jal_.into());
-        let wb_sel = idb.alloc(Alloc::WbSel.into());
-        let reg_write = idb.alloc(Alloc::RegWrite.into());
-        let r1_data = idb.alloc(Alloc::Rs1Data.into());
-        let r2_data = idb.alloc(Alloc::Rs2Data.into());
-        idb.connect(constb.alloc(0), Connect::Inst.into());
-        idb.connect(constb.alloc(1), Connect::Rd.into());
-        idb.connect(constb.alloc(2), Connect::RdData.into());
-        idb.connect(constb.alloc(3), Connect::RegWrite.into());
-        constb.build();
-        let control = idb.build().unwrap();
-        control.rasing_edge();
-        control.falling_edge();
-        assert_eq!(rs1.read(), 2);
-        assert_eq!(rs2.read(), 8);
-        assert_eq!(rd.read(), 12);
-        // assert_eq!(opcode.read(), 0x46);
-        assert_eq!(opcode.read(), instruction);
-        assert_eq!(imm.read(), 428);
-        assert_eq!(alu_op.read(), 0);
-        assert_eq!(imm_sel.read(), 1);
-        assert_eq!(pc_sel.read(), 0);
-        assert_eq!(branch_sel.read(), 0);
-        assert_eq!(mem_write.read(), 1);
-        assert_eq!(jal_.read(), 0);
-        // assert_eq!(wb_sel.read(), 0);
-        assert_eq!(reg_write.read(), 0);
-        assert_eq!(r1_data.read(), 1);
-        assert_eq!(r2_data.read(), 0);
-    }
-    #[test]
-    fn test_generate_id2() {
-        // instruction
-        // jal x0 40
-        let instruction = 0x280006f;
-        let mut idb = IdStageBuilder::new(0);
-        let mut constb = ConstsBuilder::default();
-        constb.push(instruction);
-        constb.push(0);
-        constb.push(0);
-        constb.push(1);
-        let rs1 = idb.alloc(Alloc::Rs1.into());
-        let rs2 = idb.alloc(Alloc::Rs2.into());
-        let rd = idb.alloc(Alloc::Rd.into());
-        let opcode = idb.alloc(Alloc::Opcode.into());
-        let imm = idb.alloc(Alloc::Imm.into());
-        let alu_op = idb.alloc(Alloc::AluCtrl.into());
-        let imm_sel = idb.alloc(Alloc::ImmSel.into());
-        let pc_sel = idb.alloc(Alloc::PcSel.into());
-        let branch_sel = idb.alloc(Alloc::BranchEn.into());
-        let mem_write = idb.alloc(Alloc::MemWrite.into());
-        let jal_ = idb.alloc(Alloc::Jal_.into());
-        let wb_sel = idb.alloc(Alloc::WbSel.into());
-        let reg_write = idb.alloc(Alloc::RegWrite.into());
-        let r1_data = idb.alloc(Alloc::Rs1Data.into());
-        let r2_data = idb.alloc(Alloc::Rs2Data.into());
-        idb.connect(constb.alloc(0), Connect::Inst.into());
-        idb.connect(constb.alloc(1), Connect::Rd.into());
-        idb.connect(constb.alloc(2), Connect::RdData.into());
-        idb.connect(constb.alloc(3), Connect::RegWrite.into());
-        constb.build();
-        let control = idb.build().unwrap();
-        control.rasing_edge();
-        control.falling_edge();
-        assert_eq!(rs1.read(), 0);
-        assert_eq!(rs2.read(), 8);
-        assert_eq!(rd.read(), 0);
-        // assert_eq!(opcode.read(), 0x6f);
-        assert_eq!(opcode.read(), instruction);
-        assert_eq!(imm.read(), 40);
-        assert_eq!(alu_op.read(), 0);
-        assert_eq!(imm_sel.read(), 1);
-        assert_eq!(pc_sel.read(), 1);
-        assert_eq!(branch_sel.read(), 0);
-        assert_eq!(mem_write.read(), 0);
-        assert_eq!(jal_.read(), 1);
-        // assert_eq!(wb_sel.read(), 1);
-        assert_eq!(reg_write.read(), 1);
-        assert_eq!(r1_data.read(), 0);
-        assert_eq!(r2_data.read(), 0);
-    }
-    #[test]
-    fn test_generate_id3() {
-        // instruction
-        //  addi x8 x2 432
-        let instruction = 0x1b010413;
-        let mut idb = IdStageBuilder::new(0);
-        let mut constb = ConstsBuilder::default();
-        constb.push(instruction);
-        constb.push(2);
-        constb.push(1);
-        constb.push(1);
-        let rs1 = idb.alloc(Alloc::Rs1.into());
-        let rs1 = idb.alloc(Alloc::Rs1.into());
-        let rs2 = idb.alloc(Alloc::Rs2.into());
-        let rd = idb.alloc(Alloc::Rd.into());
-        let opcode = idb.alloc(Alloc::Opcode.into());
-        let imm = idb.alloc(Alloc::Imm.into());
-        let alu_op = idb.alloc(Alloc::AluCtrl.into());
-        let imm_sel = idb.alloc(Alloc::ImmSel.into());
-        let pc_sel = idb.alloc(Alloc::PcSel.into());
-        let branch_sel = idb.alloc(Alloc::BranchEn.into());
-        let mem_write = idb.alloc(Alloc::MemWrite.into());
-        let jal_ = idb.alloc(Alloc::Jal_.into());
-        let wb_sel = idb.alloc(Alloc::WbSel.into());
-        let reg_write = idb.alloc(Alloc::RegWrite.into());
-        let r1_data = idb.alloc(Alloc::Rs1Data.into());
-        let r2_data = idb.alloc(Alloc::Rs2Data.into());
-        idb.connect(constb.alloc(0), Connect::Inst.into());
-        idb.connect(constb.alloc(1), Connect::Rd.into());
-        idb.connect(constb.alloc(2), Connect::RdData.into());
-        idb.connect(constb.alloc(3), Connect::RegWrite.into());
-        constb.build();
-        let control = idb.build().unwrap();
-        control.rasing_edge();
-        control.falling_edge();
-        assert_eq!(rs1.read(), 2);
-        assert_eq!(rs2.read(), 16);
-        assert_eq!(rd.read(), 8);
-        // assert_eq!(opcode.read(), 0x13);
-        assert_eq!(opcode.read(), instruction);
-        assert_eq!(imm.read(), 432);
-        assert_eq!(alu_op.read(), 1);
-        assert_eq!(imm_sel.read(), 1);
-        assert_eq!(pc_sel.read(), 0);
-        assert_eq!(branch_sel.read(), 0);
-        assert_eq!(mem_write.read(), 0);
-        assert_eq!(jal_.read(), 0);
-        // assert_eq!(wb_sel.read(), 0);
-        assert_eq!(reg_write.read(), 1);
-        assert_eq!(r1_data.read(), 1);
-        assert_eq!(r2_data.read(), 0);
+        let test_alloc = TestAlloc {
+            rs1: 2,
+            rs2: 8,
+            rd: 0xc,
+            opcode: 0x1a812623,
+            imm: 0x1ac,
+            branch_type: 2, //ripes is 0
+            alu_ctrl: 1,
+            imm_sel: 1,
+            pc_sel: 0,
+            branch_en: 0,
+            jal_: 0,
+            mem_write: 1,
+            wb_sel: 1,
+            reg_write: 0,
+            rs1_data: 0x7ffffff0,
+            rs2_data: 0,
+            load: 0,
+        };
+        let test_connect = TestConnect {
+            inst: 0x1a812623,
+            rd: 0,
+            rd_data: 0,
+            reg_write: 0,
+        };
+        run_test(test_alloc, test_connect);
     }
 }

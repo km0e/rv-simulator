@@ -1,4 +1,4 @@
-use super::Port;
+use crate::common::abi::*;
 
 #[derive(Default)]
 pub struct Lat {
@@ -13,4 +13,7 @@ impl Port for Lat {
     fn read(&self) -> u32 {
         self.data
     }
+}
+pub mod build {
+    pub use super::Lat;
 }

@@ -1,10 +1,11 @@
-use super::{lat::Lat, Builder, ControlRef, PortRef, PortShared};
+use crate::common::abi::*;
+use crate::common::build::*;
 
 #[derive(Default)]
 pub struct ConstsBuilder {
     data: Vec<PortShared<Lat>>,
 }
-impl Builder for ConstsBuilder {
+impl PortBuilder for ConstsBuilder {
     fn connect(&mut self, pin: PortRef, id: usize) {
         unimplemented!()
     }
@@ -12,16 +13,15 @@ impl Builder for ConstsBuilder {
         assert!(id < self.data.len());
         PortRef::from(self.data[id].clone())
     }
-    fn build(self) -> Option<ControlRef> {
-        None
-    }
 }
 impl ConstsBuilder {
     pub fn push(&mut self, value: u32) {
         self.data.push(PortShared::new(Lat::new(value)));
     }
 }
-
+pub mod build {
+    pub use super::ConstsBuilder;
+}
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -1,4 +1,6 @@
-use super::{BitBuilder, Builder, PortRef};
+use crate::common::abi::*;
+use crate::common::build::*;
+
 pub enum Alloc {
     Rs1 = 0,
     Rs2 = 1,
@@ -42,7 +44,7 @@ impl DecodeBuilder {
         }
     }
 }
-impl Builder for DecodeBuilder {
+impl PortBuilder for DecodeBuilder {
     fn alloc(&mut self, id: usize) -> PortRef {
         match id {
             0 => self.rs1.alloc(0),
@@ -51,9 +53,6 @@ impl Builder for DecodeBuilder {
             3 => self.opcode.alloc(0),
             _ => panic!("Invalid id"),
         }
-    }
-    fn build(self) -> Option<crate::component::ControlRef> {
-        None
     }
     fn connect(&mut self, pin: PortRef, id: usize) {
         assert!(id == 0);
@@ -67,7 +66,6 @@ impl Builder for DecodeBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::component::build::*;
 
     #[test]
     fn test_decode1() {

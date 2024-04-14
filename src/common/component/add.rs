@@ -1,30 +1,42 @@
-use super::Builder;
-use super::ControlRef;
-use super::Port;
-use super::PortRef;
-use super::PortShared;
-
+use crate::common::abi::*;
+pub enum Alloc {
+    Out,
+}
+impl From<Alloc> for usize {
+    fn from(alloc: Alloc) -> usize {
+        match alloc {
+            Alloc::Out => 0,
+        }
+    }
+}
+pub enum Connect {
+    In(usize),
+}
+impl From<Connect> for usize {
+    fn from(alloc: Connect) -> usize {
+        match alloc {
+            Connect::In(c) => c,
+        }
+    }
+}
 #[derive(Default)]
 pub struct AddBuilder {
-    pub add: PortShared<Add>,
+    inner: PortShared<Add>,
 }
 impl AddBuilder {
     pub fn new() -> Self {
         Self {
-            add: PortShared::new(Add::default()),
+            inner: PortShared::new(Add::default()),
         }
     }
 }
 
-impl Builder for AddBuilder {
+impl PortBuilder for AddBuilder {
     fn connect(&mut self, pin: PortRef, _: usize) {
-        self.add.borrow_mut().input.push(pin);
+        self.inner.borrow_mut().input.push(pin);
     }
     fn alloc(&mut self, _id: usize) -> PortRef {
-        super::PortRef::from(self.add.clone())
-    }
-    fn build(self) -> Option<ControlRef> {
-        None
+        PortRef::from(self.inner.clone())
     }
 }
 
@@ -39,10 +51,15 @@ impl Port for Add {
     }
 }
 
+pub mod build {
+    pub use super::AddBuilder;
+    pub use super::Alloc as AddAlloc;
+    pub use super::Connect as AddConnect;
+}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::component::consts::ConstsBuilder;
+    use crate::common::build::*;
 
     #[test]
     fn test_add() {

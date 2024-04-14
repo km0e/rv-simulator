@@ -1,15 +1,13 @@
-use super::{Builder, Port, PortRef, PortShared};
+use crate::common::abi::*;
+
 #[derive(Default)]
 pub struct ImmBuilder {
     inner: PortShared<Imm>,
 }
-impl Builder for ImmBuilder {
+impl PortBuilder for ImmBuilder {
     fn alloc(&mut self, id: usize) -> PortRef {
         assert_eq!(id, 0);
         PortRef::from(self.inner.clone())
-    }
-    fn build(self) -> Option<crate::component::ControlRef> {
-        None
     }
     fn connect(&mut self, pin: PortRef, id: usize) {
         match id {
@@ -64,7 +62,8 @@ impl Port for Imm {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::component::build::*;
+    use crate::common::build::*;
+
     #[test]
     fn test_imm() {
         let mut tb = ImmBuilder::default();

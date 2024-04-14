@@ -1,6 +1,5 @@
-use std::collections::HashMap;
-
-use super::{lat::Lat, Builder, Control, ControlRef, ControlShared, PortRef, PortShared};
+use crate::common::abi::*;
+use crate::common::build::*;
 
 const PAGE_SIZE: usize = 4096;
 //pagefault will allocate a new page
@@ -88,7 +87,12 @@ impl MemBuilder {
         }
     }
 }
-impl Builder for MemBuilder {
+impl ControlBuilder for MemBuilder {
+    fn build(self) -> Box<dyn Control> {
+        Some(self.inner.clone())
+    }
+}
+impl PortBuilder for MemBuilder {
     // Connect the address and input pin
     fn connect(&mut self, pin: PortRef, id: usize) {
         match id {
@@ -103,10 +107,7 @@ impl Builder for MemBuilder {
     // 0 for address
     // 1 for input
     fn alloc(&mut self, _: usize) -> PortRef {
-        PortRef::from(self.inner.borrow().output.clone())
-    }
-    fn build(self) -> Option<ControlRef> {
-        Some(ControlRef::from(self.inner.clone()))
+        PortRef::from(self.inner.clone())
     }
 }
 #[derive(Default)]
@@ -115,11 +116,12 @@ pub struct Mem {
     data: Vec<u8>,
     stack: Vec<u8>,
     pub input: Option<PortRef>,
+    pub input_cache: u32,
     pub write: Option<PortRef>,
+    pub write_cache: u32,
     pub read: Option<PortRef>,
     pub address: Option<PortRef>,
     pub address_cache: usize,
-    pub output: PortShared<Lat>,
 }
 const STACK_ADDR: u32 = 0x7FFFFFF0;
 impl Mem {
@@ -137,51 +139,83 @@ impl Mem {
         self.data = data;
     }
 }
-impl Control for Mem {
-    fn rasing_edge(&mut self) {
-        if let Some(address) = self.address.as_ref() {
-            self.address_cache = address.read() as usize;
+impl Port for Mem {
+    fn read(&self) -> u32 {
+        if self
+            .read
+            .as_ref()
+            .expect("read enable is not connected")
+            .read()
+            != 1
+        {
+            return 0;
         }
-        if self.write.as_ref().unwrap().read() == 1 {
-            let value = self.input.as_ref().unwrap().read();
-
-            let (arr, addr) = if self.address_cache > STACK_ADDR as usize {
-                (&mut self.stack, self.address_cache - STACK_ADDR as usize)
-            } else {
-                (&mut self.data, self.address_cache)
-            };
-            if addr + 4 > arr.len() {
-                arr.resize(addr + 4, 0);
-            }
-            arr[addr] = (value & 0xff) as u8;
-            arr[addr + 1] = ((value >> 8) & 0xff) as u8;
-            arr[addr + 2] = ((value >> 16) & 0xff) as u8;
-            arr[addr + 3] = ((value >> 24) & 0xff) as u8;
+        let addr = self
+            .address
+            .as_ref()
+            .expect("address is not connected")
+            .read() as usize;
+        let (arr, addr) = if addr > STACK_ADDR as usize {
+            (&self.stack, addr - STACK_ADDR as usize)
+        } else {
+            (&self.data, addr)
+        };
+        if addr + 4 > arr.len() {
+            return 0;
         }
-    }
-    fn falling_edge(&mut self) {
-        if self.read.as_ref().unwrap().read() == 1 {
-            let (arr, addr) = if self.address_cache > STACK_ADDR as usize {
-                (&mut self.stack, self.address_cache - STACK_ADDR as usize)
-            } else {
-                (&mut self.data, self.address_cache)
-            };
-            if addr + 4 > arr.len() {
-                arr.resize(addr + 4, 0);
-            }
-            self.output.borrow_mut().data =
-                u32::from_ne_bytes([arr[addr], arr[addr + 1], arr[addr + 2], arr[addr + 3]]);
-        }
-    }
-    fn debug(&self) -> String {
-        format!("mem: {:#X}", self.output.borrow().data)
+        u32::from_ne_bytes([arr[addr], arr[addr + 1], arr[addr + 2], arr[addr + 3]])
     }
 }
-
+impl Control for Mem {
+    fn rasing_edge(&mut self) {
+        if self
+            .write
+            .as_ref()
+            .expect("write enable is not connected")
+            .read()
+            != 1
+        {
+            self.write_cache = 0;
+            return;
+        }
+        self.address_cache = self
+            .address
+            .as_ref()
+            .expect("address is not connected")
+            .read() as usize;
+        self.input_cache = self.input.as_ref().expect("input is not connected").read();
+        self.write_cache = 1;
+    }
+    fn falling_edge(&mut self) {
+        if self.write_cache == 1 {
+            let (arr, addr) = if self.address_cache > STACK_ADDR as usize {
+                (&mut self.stack, self.address_cache - STACK_ADDR as usize)
+            } else {
+                (&mut self.data, self.address_cache)
+            };
+            if addr + 4 > arr.len() {
+                arr.resize(addr + 4, 0);
+            }
+            arr[addr] = (self.input_cache & 0xff) as u8;
+            arr[addr + 1] = ((self.input_cache >> 8) & 0xff) as u8;
+            arr[addr + 2] = ((self.input_cache >> 16) & 0xff) as u8;
+            arr[addr + 3] = ((self.input_cache >> 24) & 0xff) as u8;
+        }
+    }
+    #[cfg(debug_assertions)]
+    fn debug(&self) -> String {
+        format!("mem: {:#X}", self.read())
+    }
+}
+pub mod build {
+    pub use super::Alloc as MemAlloc;
+    pub use super::Connect as MemConnect;
+    pub use super::MemBuilder;
+}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::component::build::*;
+    use crate::common::abi::*;
 
     #[test]
     fn test_mem() {

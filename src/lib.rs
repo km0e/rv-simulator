@@ -1,6 +1,6 @@
 mod circuit;
-mod component;
+mod common;
 mod simulator;
-pub use component::Builder;
-pub use component::Control;
+mod tui;
+pub use common::abi;
 pub use simulator::Rv32iBuilder;

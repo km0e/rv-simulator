@@ -1,10 +1,5 @@
-use crate::{
-    component::{
-        Builder, Composite, CompositeRef, CompositeShared, ControlRef, ControlShared, Port,
-        PortRef, PortShared,
-    },
-    Control,
-};
+use crate::common::abi::*;
+
 pub enum Alloc {
     PcEnable = 0,
     IfIdEnable = 1,
@@ -39,11 +34,23 @@ impl From<Connect> for usize {
 }
 #[derive(Default)]
 pub struct HazardBuilder {
-    pub pc_enable: CompositeShared<PcEnable>,
-    pub if_id_enable: CompositeShared<IfIdEnable>,
-    pub id_ex_clear: CompositeShared<IdExClear>,
+    pub pc_enable: PortShared<PcEnable>,
+    pub if_id_enable: PortShared<IfIdEnable>,
+    pub id_ex_clear: PortShared<IdExClear>,
 }
-impl Builder for HazardBuilder {
+impl ControlBuilder for HazardBuilder {
+    fn build(self) -> ControlRef {
+        Some(
+            ControlShared::new(Hazard {
+                pc_enable: ControlRef::from(self.pc_enable),
+                if_id_enable: ControlRef::from(self.if_id_enable),
+                id_ex_clear: ControlRef::from(self.id_ex_clear),
+            })
+            .into(),
+        )
+    }
+}
+impl PortBuilder for HazardBuilder {
     fn alloc(&mut self, id: usize) -> PortRef {
         match id {
             0 => PortRef::from(self.pc_enable.clone()),
@@ -80,23 +87,14 @@ impl Builder for HazardBuilder {
             _ => panic!("Invalid id"),
         }
     }
-    fn build(self) -> Option<crate::component::ControlRef> {
-        Some(
-            ControlShared::new(Hazard {
-                pc_enable: CompositeRef::from(self.pc_enable),
-                if_id_enable: CompositeRef::from(self.if_id_enable),
-                id_ex_clear: CompositeRef::from(self.id_ex_clear),
-            })
-            .into(),
-        )
-    }
 }
 pub struct Hazard {
-    pub pc_enable: CompositeRef,
-    pub if_id_enable: CompositeRef,
-    pub id_ex_clear: CompositeRef,
+    pub pc_enable: ControlRef,
+    pub if_id_enable: ControlRef,
+    pub id_ex_clear: ControlRef,
 }
 impl Control for Hazard {
+    #[cfg(debug_assertions)]
     fn debug(&self) -> String {
         format!(
             "Hazard\nPC_EN\t\t: {:8}IF_IF_EN\t: {:8}ID_EX_CLR\t: {:8}",
@@ -115,6 +113,7 @@ pub struct PcEnable {
 }
 
 impl Control for PcEnable {
+    #[cfg(debug_assertions)]
     fn debug(&self) -> String {
         format!("{:X}", self.read())
     }
@@ -153,7 +152,6 @@ impl Port for PcEnable {
         }
     }
 }
-impl Composite for PcEnable {}
 
 #[derive(Default)]
 pub struct IfIdEnable {
@@ -163,6 +161,7 @@ pub struct IfIdEnable {
     pub id_rs2: Option<PortRef>,
 }
 impl Control for IfIdEnable {
+    #[cfg(debug_assertions)]
     fn debug(&self) -> String {
         format!("{:X}", self.read())
     }
@@ -200,7 +199,6 @@ impl Port for IfIdEnable {
         }
     }
 }
-impl Composite for IfIdEnable {}
 
 #[derive(Default)]
 pub struct IdExClear {
@@ -211,6 +209,7 @@ pub struct IdExClear {
     pub id_rs2: Option<PortRef>,
 }
 impl Control for IdExClear {
+    #[cfg(debug_assertions)]
     fn debug(&self) -> String {
         format!("{:X}", self.read())
     }
@@ -256,12 +255,11 @@ impl Port for IdExClear {
         }
     }
 }
-impl Composite for IdExClear {}
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::component::build::*;
+    use crate::common::build::*;
     struct TestAlloc {
         pub pc_enable: u32,
         pub if_id_enable: u32,

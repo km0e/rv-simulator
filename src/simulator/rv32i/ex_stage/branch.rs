@@ -1,4 +1,4 @@
-use crate::component::{Builder, Port, PortRef, PortShared};
+use crate::common::abi::*;
 pub enum Alloc {
     BK = 0,
 }
@@ -31,15 +31,12 @@ impl From<Connect> for usize {
 pub struct BranchBuilder {
     inner: PortShared<Alu>,
 }
-impl Builder for BranchBuilder {
+impl PortBuilder for BranchBuilder {
     fn alloc(&mut self, id: usize) -> PortRef {
         match id {
             0 => PortRef::from(self.inner.clone()),
             _ => panic!("Invalid id"),
         }
-    }
-    fn build(self) -> Option<crate::component::ControlRef> {
-        None
     }
     fn connect(&mut self, pin: PortRef, id: usize) {
         match id {
@@ -90,8 +87,8 @@ impl Port for Alu {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::component::build::*;
-    use crate::component::Builder;
+    use crate::common::build::*;
+
     #[test]
     fn test_alu() {
         let mut alub = BranchBuilder::default();

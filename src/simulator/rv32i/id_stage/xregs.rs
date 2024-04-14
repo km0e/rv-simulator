@@ -1,6 +1,15 @@
-use crate::component::{Control, ControlRef, ControlShared};
+mod mux;
+mod rgroup;
+use self::rgroup::RegGroupBuilder;
+use crate::common::abi::*;
 
-use super::{Builder, Lat, PortRef, PortShared};
+use mux::Alloc as RegMuxAlloc;
+use mux::Connect as RegMuxConnect;
+use mux::IndexConnect as RegMuxIndexConnect;
+use mux::RegMuxBuilder;
+use rgroup::Alloc as RegGroupAlloc;
+use rgroup::Connect as RegGroupConnect;
+use rgroup::IndexAlloc as RegGroupIndexAlloc;
 pub enum Alloc {
     R1Data = 0,
     R2Data = 1,
@@ -31,131 +40,94 @@ impl From<Connect> for usize {
         }
     }
 }
-#[derive(Default)]
 pub struct XregsBuilder {
-    inner: ControlShared<Regs>,
+    x: RegGroupBuilder,
+    mux_rs1: RegMuxBuilder,
+    mux_rs2: RegMuxBuilder,
 }
 impl XregsBuilder {
     pub fn new(esp: u32) -> Self {
+        let mut x = RegGroupBuilder::new(esp);
+        let mut mux_rs1 = RegMuxBuilder::default();
+        let mut mux_rs2 = RegMuxBuilder::default();
+        mux_rs1.index_connect(
+            x.index_alloc(RegGroupIndexAlloc::X.into()),
+            RegMuxIndexConnect::X.into(),
+        );
+        mux_rs2.index_connect(
+            x.index_alloc(RegGroupIndexAlloc::X.into()),
+            RegMuxIndexConnect::X.into(),
+        );
         Self {
-            inner: ControlShared::new(Regs::new(esp)),
+            x,
+            mux_rs1,
+            mux_rs2,
         }
     }
 }
-impl Builder for XregsBuilder {
+impl PortBuilder for XregsBuilder {
     fn connect(&mut self, pin: PortRef, id: usize) {
         match id {
-            0 => self.inner.borrow_mut().rs1 = Some(pin),
-            1 => self.inner.borrow_mut().rs2 = Some(pin),
-            2 => self.inner.borrow_mut().rd = Some(pin),
-            3 => self.inner.borrow_mut().rd_data = Some(pin),
-            4 => self.inner.borrow_mut().write = Some(pin),
+            0 => self.mux_rs1.connect(pin, RegMuxConnect::Rs.into()),
+            1 => self.mux_rs2.connect(pin, RegMuxConnect::Rs.into()),
+            2 => {
+                self.mux_rs1.connect(pin.clone(), RegMuxConnect::Rd.into());
+                self.mux_rs2.connect(pin.clone(), RegMuxConnect::Rd.into());
+                self.x.connect(pin, RegGroupConnect::Rd.into());
+            }
+            3 => {
+                self.mux_rs1
+                    .connect(pin.clone(), RegMuxConnect::RdData.into());
+                self.mux_rs2
+                    .connect(pin.clone(), RegMuxConnect::RdData.into());
+                self.x.connect(pin, RegGroupConnect::RdData.into());
+            }
+            4 => {
+                self.mux_rs1
+                    .connect(pin.clone(), RegMuxConnect::Write.into());
+                self.mux_rs2
+                    .connect(pin.clone(), RegMuxConnect::Write.into());
+                self.x.connect(pin, RegGroupConnect::Write.into());
+            }
             _ => panic!("Invalid id"),
         }
     }
     fn alloc(&mut self, id: usize) -> PortRef {
         match id {
-            0 => PortRef::from(self.inner.borrow().r1data.clone()),
-            1 => PortRef::from(self.inner.borrow().r2data.clone()),
+            0 => self.mux_rs1.alloc(RegMuxAlloc::Out.into()),
+            1 => self.mux_rs2.alloc(RegMuxAlloc::Out.into()),
             _ => panic!("Invalid id"),
         }
     }
-    fn build(self) -> Option<ControlRef> {
-        Some(ControlRef::from(self.inner.clone()))
-    }
 }
-#[derive(Default)]
-pub struct Regs {
-    pub rs1: Option<PortRef>,
-    pub rs1_val: u32,
-    pub rs2: Option<PortRef>,
-    pub rs2_val: u32,
-    pub rd: Option<PortRef>,
-    pub rd_data: Option<PortRef>,
-    pub write: Option<PortRef>,
-    pub x: [u32; 32],
-    pub r1data: PortShared<Lat>,
-    pub r2data: PortShared<Lat>,
-}
-impl Regs {
-    pub fn new(esp: u32) -> Self {
-        let mut slf = Self {
-            x: [0; 32],
-            r1data: PortShared::new(Lat::new(0)),
-            r2data: PortShared::new(Lat::new(0)),
-            ..Default::default()
-        };
-        slf.x[2] = esp;
-        slf
-    }
-}
-impl Control for Regs {
-    fn rasing_edge(&mut self) {
-        match self.rs1 {
-            Some(ref rs1) => self.rs1_val = rs1.read(),
-            None => {
-                unimplemented!()
-            }
-        };
-        match self.rs2 {
-            Some(ref rs2) => self.rs2_val = rs2.read(),
-            None => {
-                unimplemented!()
-            }
-        };
-        if match self.write {
-            Some(ref enable) => enable.read() == 1,
-            None => {
-                unimplemented!()
-            }
-        } {
-            match (&self.rd, &self.rd_data) {
-                (Some(ref rd), Some(ref rd_data)) => {
-                    self.x[rd.read() as usize] = rd_data.read();
-                }
-                _ => {
-                    unimplemented!()
-                }
-            }
-        }
-    }
-    fn falling_edge(&mut self) {
-        self.r1data.borrow_mut().data = self.x[self.rs1_val as usize];
-        self.r2data.borrow_mut().data = self.x[self.rs2_val as usize];
-    }
-    fn debug(&self) -> String {
-        format!(
-            "regs: r1data: {:#X}, r2data: {:#X}",
-            self.r1data.borrow().data,
-            self.r2data.borrow().data
-        )
+impl ControlBuilder for XregsBuilder {
+    fn build(self) -> ControlRef {
+        self.x.build().into()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::component::build::*;
+    use crate::common::build::*;
 
     #[test]
     fn test_regs() {
-        let mut rsb = XregsBuilder::default();
+        let mut rsb = XregsBuilder::new(0);
         let mut consts = ConstsBuilder::default();
         consts.push(0);
         consts.push(1);
-        consts.push(2);
-        consts.push(0);
         consts.push(4);
-        rsb.connect(consts.alloc(0), 0);
-        rsb.connect(consts.alloc(2), 1);
-        rsb.connect(consts.alloc(3), 2);
-        rsb.connect(consts.alloc(4), 3);
-        rsb.connect(consts.alloc(1), 4);
+        rsb.connect(consts.alloc(0), Connect::Rs1.into());
+        rsb.connect(consts.alloc(1), Connect::Rs2.into());
+        rsb.connect(consts.alloc(0), Connect::Rd.into());
+        rsb.connect(consts.alloc(1), Connect::Write.into());
+        rsb.connect(consts.alloc(2), Connect::RdData.into());
         consts.build();
-        let r1 = rsb.alloc(0);
-        let r2 = rsb.alloc(1);
-        let rs = rsb.build().unwrap();
-        assert_eq!(r1.read(), 0);
+        let r1 = rsb.alloc(Alloc::R1Data.into());
+        let r2 = rsb.alloc(Alloc::R2Data.into());
+        let rs = rsb.build();
+        assert_eq!(r1.read(), 4);
         assert_eq!(r2.read(), 0);
         rs.rasing_edge();
         rs.falling_edge();

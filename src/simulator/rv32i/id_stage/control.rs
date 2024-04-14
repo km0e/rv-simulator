@@ -1,4 +1,6 @@
-use super::{BitBuilder, Builder, Port, PortRef, PortShared};
+use crate::common::abi::*;
+use crate::common::build::*;
+
 pub enum Alloc {
     BranchType = 0,
     AluCtrl = 1,
@@ -28,7 +30,7 @@ impl From<Alloc> for usize {
         }
     }
 }
-pub struct ControlBuilder {
+pub struct CtrlSigBuilder {
     branch_type: BitBuilder,
     alu_ctl: PortShared<AluCtl>,
     imm_sel: PortShared<ImmSel>,
@@ -41,7 +43,7 @@ pub struct ControlBuilder {
     load: PortShared<LoadSiganl>,
 }
 
-impl ControlBuilder {
+impl CtrlSigBuilder {
     pub fn new() -> Self {
         Self {
             branch_type: BitBuilder::new((12, 14)),
@@ -58,7 +60,7 @@ impl ControlBuilder {
     }
 }
 
-impl Builder for ControlBuilder {
+impl PortBuilder for CtrlSigBuilder {
     fn alloc(&mut self, id: usize) -> PortRef {
         match id {
             0 => PortRef::from(self.branch_type.inner.clone()),
@@ -73,9 +75,6 @@ impl Builder for ControlBuilder {
             10 => PortRef::from(self.load.clone()),
             _ => panic!("Invalid id"),
         }
-    }
-    fn build(self) -> Option<crate::component::ControlRef> {
-        None
     }
     fn connect(&mut self, pin: PortRef, id: usize) {
         assert!(id == 0);
@@ -155,9 +154,8 @@ impl Port for AluCtl {
         };
         let opcode = 0b111_1111 & input;
         match opcode {
-            0b011_0011 => ((input << 1) >> 31) | ((input << 17) >> 28), //alu
-            0b001_0011 => ((input << 1) >> 31) | ((input << 17) >> 28) | 1, //imm
-            0b000_0011 | 0b010_0011 | 0b110_0011 | 0b110_1111 | 0b110_0111 => 0, //load, store, branch, jal, jalr
+            0b011_0011 | 0b001_0011 => ((input << 1) >> 31) | ((input << 17) >> 28) | 1, //alu
+            0b000_0011 | 0b010_0011 | 0b110_0011 | 0b110_1111 | 0b110_0111 => 0b00001,
             _ => {
                 0
                 // unimplemented!();

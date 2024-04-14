@@ -1,4 +1,6 @@
-use crate::component::{build::MemBuilder, Builder, PortRef};
+use crate::common::abi::*;
+use crate::common::build::*;
+
 pub enum Alloc {
     Out = 0,
 }
@@ -29,15 +31,16 @@ impl From<Connect> for usize {
 pub struct MemStageBuilder {
     pub inner: MemBuilder,
 }
-
-impl Builder for MemStageBuilder {
+impl ControlBuilder for MemStageBuilder {
+    fn build(self) -> ControlRef {
+        self.inner.build()
+    }
+}
+impl PortBuilder for MemStageBuilder {
     fn alloc(&mut self, id: usize) -> PortRef {
         self.inner.alloc(id)
     }
     fn connect(&mut self, pin: PortRef, id: usize) {
         self.inner.connect(pin, id)
-    }
-    fn build(self) -> Option<crate::component::ControlRef> {
-        self.inner.build()
     }
 }
