@@ -10,19 +10,6 @@ pub enum Alloc {
     Rd = 5,
 }
 
-impl From<Alloc> for usize {
-    fn from(id: Alloc) -> Self {
-        match id {
-            Alloc::RegWrite => 0,
-            Alloc::WbSel => 1,
-            Alloc::Npc => 2,
-            Alloc::AluRes => 3,
-            Alloc::MemData => 4,
-            Alloc::Rd => 5,
-        }
-    }
-}
-
 pub enum Connect {
     RegWrite = 0,
     WbSel = 1,
@@ -32,21 +19,6 @@ pub enum Connect {
     Rd = 5,
     Enable = 6,
     Clear = 7,
-}
-
-impl From<Connect> for usize {
-    fn from(id: Connect) -> Self {
-        match id {
-            Connect::RegWrite => 0,
-            Connect::WbSel => 1,
-            Connect::Npc => 2,
-            Connect::AluRes => 3,
-            Connect::MemData => 4,
-            Connect::Rd => 5,
-            Connect::Enable => 6,
-            Connect::Clear => 7,
-        }
-    }
 }
 
 #[derive(Default)]
@@ -85,43 +57,42 @@ impl ControlBuilder for MemWbBuilder {
     }
 }
 impl PortBuilder for MemWbBuilder {
-    fn alloc(&mut self, id: usize) -> PortRef {
+    type Alloc = Alloc;
+    type Connect = Connect;
+    fn alloc(&mut self, id: Alloc) -> PortRef {
         match id {
-            0 => self.reg_write.alloc(RegAlloc::Out.into()),
-            1 => self.wb_sel.alloc(RegAlloc::Out.into()),
-            2 => self.npc.alloc(RegAlloc::Out.into()),
-            3 => self.alu_res.alloc(RegAlloc::Out.into()),
-            4 => self.mem_data.alloc(RegAlloc::Out.into()),
-            5 => self.rd.alloc(RegAlloc::Out.into()),
+            Alloc::RegWrite => self.reg_write.alloc(RegAlloc::Out),
+            Alloc::WbSel => self.wb_sel.alloc(RegAlloc::Out),
+            Alloc::Npc => self.npc.alloc(RegAlloc::Out),
+            Alloc::AluRes => self.alu_res.alloc(RegAlloc::Out),
+            Alloc::MemData => self.mem_data.alloc(RegAlloc::Out),
+            Alloc::Rd => self.rd.alloc(RegAlloc::Out),
             _ => panic!("Invalid id"),
         }
     }
-    fn connect(&mut self, pin: PortRef, id: usize) {
+    fn connect(&mut self, pin: PortRef, id: Connect) {
         match id {
-            0 => self.reg_write.connect(pin, RegConnect::In.into()),
-            1 => self.wb_sel.connect(pin, RegConnect::In.into()),
-            2 => self.npc.connect(pin, RegConnect::In.into()),
-            3 => self.alu_res.connect(pin, RegConnect::In.into()),
-            4 => self.mem_data.connect(pin, RegConnect::In.into()),
-            5 => self.rd.connect(pin, RegConnect::In.into()),
-            6 => {
-                self.reg_write
-                    .connect(pin.clone(), RegConnect::Enable.into());
-                self.wb_sel.connect(pin.clone(), RegConnect::Enable.into());
-                self.npc.connect(pin.clone(), RegConnect::Enable.into());
-                self.alu_res.connect(pin.clone(), RegConnect::Enable.into());
-                self.mem_data
-                    .connect(pin.clone(), RegConnect::Enable.into());
-                self.rd.connect(pin, RegConnect::Enable.into());
+            Connect::RegWrite => self.reg_write.connect(pin, RegConnect::In),
+            Connect::WbSel => self.wb_sel.connect(pin, RegConnect::In),
+            Connect::Npc => self.npc.connect(pin, RegConnect::In),
+            Connect::AluRes => self.alu_res.connect(pin, RegConnect::In),
+            Connect::MemData => self.mem_data.connect(pin, RegConnect::In),
+            Connect::Rd => self.rd.connect(pin, RegConnect::In),
+            Connect::Enable => {
+                self.reg_write.connect(pin.clone(), RegConnect::Enable);
+                self.wb_sel.connect(pin.clone(), RegConnect::Enable);
+                self.npc.connect(pin.clone(), RegConnect::Enable);
+                self.alu_res.connect(pin.clone(), RegConnect::Enable);
+                self.mem_data.connect(pin.clone(), RegConnect::Enable);
+                self.rd.connect(pin, RegConnect::Enable);
             }
-            7 => {
-                self.reg_write
-                    .connect(pin.clone(), RegConnect::Clear.into());
-                self.wb_sel.connect(pin.clone(), RegConnect::Clear.into());
-                self.npc.connect(pin.clone(), RegConnect::Clear.into());
-                self.alu_res.connect(pin.clone(), RegConnect::Clear.into());
-                self.mem_data.connect(pin.clone(), RegConnect::Clear.into());
-                self.rd.connect(pin, RegConnect::Clear.into());
+            Connect::Clear => {
+                self.reg_write.connect(pin.clone(), RegConnect::Clear);
+                self.wb_sel.connect(pin.clone(), RegConnect::Clear);
+                self.npc.connect(pin.clone(), RegConnect::Clear);
+                self.alu_res.connect(pin.clone(), RegConnect::Clear);
+                self.mem_data.connect(pin.clone(), RegConnect::Clear);
+                self.rd.connect(pin, RegConnect::Clear);
             }
             _ => panic!("Invalid id"),
         }

@@ -2,22 +2,8 @@ use crate::common::abi::*;
 pub enum Alloc {
     Out,
 }
-impl From<Alloc> for usize {
-    fn from(alloc: Alloc) -> usize {
-        match alloc {
-            Alloc::Out => 0,
-        }
-    }
-}
 pub enum Connect {
     In(usize),
-}
-impl From<Connect> for usize {
-    fn from(alloc: Connect) -> usize {
-        match alloc {
-            Connect::In(c) => c,
-        }
-    }
 }
 #[derive(Default)]
 pub struct AddBuilder {
@@ -32,10 +18,12 @@ impl AddBuilder {
 }
 
 impl PortBuilder for AddBuilder {
-    fn connect(&mut self, pin: PortRef, _: usize) {
+    type Alloc = Alloc;
+    type Connect = Connect;
+    fn connect(&mut self, pin: PortRef, _: Self::Connect) {
         self.inner.borrow_mut().input.push(pin);
     }
-    fn alloc(&mut self, _id: usize) -> PortRef {
+    fn alloc(&mut self, _id: Self::Alloc) -> PortRef {
         PortRef::from(self.inner.clone())
     }
 }
@@ -68,8 +56,8 @@ mod tests {
         constant.push(1);
         constant.push(2);
         let t = tb.alloc(Alloc::Out.into());
-        tb.connect(constant.alloc(0), Connect::In(0).into());
-        tb.connect(constant.alloc(1), Connect::In(1).into());
+        tb.connect(constant.alloc(ConstsAlloc::Out(0)), Connect::In(0).into());
+        tb.connect(constant.alloc(ConstsAlloc::Out(1)), Connect::In(1).into());
         assert_eq!(t.read(), 3);
         assert_eq!(t.read(), 3);
     }

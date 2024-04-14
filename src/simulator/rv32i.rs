@@ -19,9 +19,7 @@ use id_stage::IdStageBuilder;
 use if_stage::Alloc as IfAlloc;
 use if_stage::Connect as IfConnect;
 use if_stage::IfStageBuilder;
-use mem_stage::Alloc as MemAlloc;
-use mem_stage::Connect as MemConnect;
-use mem_stage::MemStageBuilder;
+use mem_stage::build::*;
 use sep_reg::build::*;
 use wb_stage::Alloc as WbAlloc;
 use wb_stage::Connect as WbConnect;
@@ -251,7 +249,7 @@ impl Rv32iBuilder {
         );
         mem_stage.connect(
             ex_mem.alloc(ExMemAlloc::Rs2Data.into()),
-            MemConnect::Data.into(),
+            MemConnect::Input.into(),
         );
         mem_stage.connect(
             ex_mem.alloc(ExMemAlloc::MemRead.into()),
@@ -321,17 +319,22 @@ impl Rv32iBuilder {
         //set up consts
         let mut consts = ConstsBuilder::default();
         consts.push(1);
-        consts.push(1);
         consts.push(0);
-        consts.push(1);
-        consts.push(0);
-        consts.push(0);
-        id_ex.connect(consts.alloc(0), IdExConnect::Enable.into());
-        ex_mem.connect(consts.alloc(1), ExMemConnect::Ebable.into());
-        ex_mem.connect(consts.alloc(2), ExMemConnect::Clear.into());
-        mem_wb.connect(consts.alloc(3), MemWbConnect::Enable.into());
-        mem_wb.connect(consts.alloc(4), MemWbConnect::Clear.into());
-        if_id.connect(consts.alloc(5), IfIdConnect::Clear.into());
+        id_ex.connect(consts.alloc(ConstsAlloc::Out(0)), IdExConnect::Enable);
+        ex_mem.connect(consts.alloc(ConstsAlloc::Out(0)), ExMemConnect::Ebable);
+        ex_mem.connect(
+            consts.alloc(ConstsAlloc::Out(1)),
+            ExMemConnect::Clear.into(),
+        );
+        mem_wb.connect(
+            consts.alloc(ConstsAlloc::Out(0)),
+            MemWbConnect::Enable.into(),
+        );
+        mem_wb.connect(
+            consts.alloc(ConstsAlloc::Out(1)),
+            MemWbConnect::Clear.into(),
+        );
+        if_id.connect(consts.alloc(ConstsAlloc::Out(1)), IfIdConnect::Clear.into());
         //build
         Self {
             if_stage,

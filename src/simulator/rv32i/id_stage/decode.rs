@@ -50,21 +50,22 @@ impl Default for DecodeBuilder {
     }
 }
 impl PortBuilder for DecodeBuilder {
-    fn alloc(&mut self, id: usize) -> PortRef {
+    type Alloc = Alloc;
+    type Connect = Connect;
+    fn alloc(&mut self, id: Alloc) -> PortRef {
         match id {
-            0 => self.rs1.alloc(0),
-            1 => self.rs2.alloc(0),
-            2 => self.rd.alloc(0),
-            3 => self.opcode.alloc(0),
+            Alloc::Rs1 => self.rs1.alloc(BitAlloc::Out),
+            Alloc::Rs2 => self.rs2.alloc(BitAlloc::Out),
+            Alloc::Rd => self.rd.alloc(BitAlloc::Out),
+            Alloc::Opcode => self.opcode.alloc(BitAlloc::Out),
             _ => panic!("Invalid id"),
         }
     }
-    fn connect(&mut self, pin: PortRef, id: usize) {
-        assert!(id == 0);
-        self.rs1.connect(pin.clone(), 0);
-        self.rs2.connect(pin.clone(), 0);
-        self.rd.connect(pin.clone(), 0);
-        self.opcode.connect(pin.clone(), 0);
+    fn connect(&mut self, pin: PortRef, id: Connect) {
+        self.rs1.connect(pin.clone(), BitConnect::In);
+        self.rs2.connect(pin.clone(), BitConnect::In);
+        self.rd.connect(pin.clone(), BitConnect::In);
+        self.opcode.connect(pin.clone(), BitConnect::In);
     }
 }
 
@@ -79,11 +80,11 @@ mod tests {
         // 0000000 | 00001 | 00010 | 000 | 00011 | 0110011
         //    0    |   1   |   2   |  0  |   3   | 0110011
         constant.push(0b00000000000100010000000110110011);
-        let rs1 = tb.alloc(0);
-        let rs2 = tb.alloc(1);
-        let rd = tb.alloc(2);
-        let opcode = tb.alloc(3);
-        tb.connect(constant.alloc(0), 0);
+        let rs1 = tb.alloc(Alloc::Rs1);
+        let rs2 = tb.alloc(Alloc::Rs2);
+        let rd = tb.alloc(Alloc::Rd);
+        let opcode = tb.alloc(Alloc::Opcode);
+        tb.connect(constant.alloc(ConstsAlloc::Out(0)), Connect::Inst);
         assert_eq!(rs1.read(), 2);
         assert_eq!(rs2.read(), 1);
         assert_eq!(rd.read(), 3);
@@ -98,11 +99,11 @@ mod tests {
         // 0000001 | 01000 | 00000 | 000 | 00000 | 1101111
         //    1    |   8   |   0   |  0  |   0   | 1101111
         constant.push(instruction);
-        let rs1 = tb.alloc(0);
-        let rs2 = tb.alloc(1);
-        let rd = tb.alloc(2);
-        let opcode = tb.alloc(3);
-        tb.connect(constant.alloc(0), 0);
+        let rs1 = tb.alloc(Alloc::Rs1);
+        let rs2 = tb.alloc(Alloc::Rs2);
+        let rd = tb.alloc(Alloc::Rd);
+        let opcode = tb.alloc(Alloc::Opcode);
+        tb.connect(constant.alloc(ConstsAlloc::Out(0)), Connect::Inst);
         assert_eq!(rs1.read(), 0);
         assert_eq!(rs2.read(), 8);
         assert_eq!(rd.read(), 0);

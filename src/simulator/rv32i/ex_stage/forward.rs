@@ -38,30 +38,32 @@ pub struct ForwardBuilder {
     pub forward2: PortShared<Forward>,
 }
 impl PortBuilder for ForwardBuilder {
-    fn alloc(&mut self, id: usize) -> PortRef {
+    type Alloc = Alloc;
+    type Connect = Connect;
+    fn alloc(&mut self, id: Alloc) -> PortRef {
         match id {
-            0 => PortRef::from(self.forward1.clone()),
-            1 => PortRef::from(self.forward2.clone()),
+            Alloc::Forward1 => PortRef::from(self.forward1.clone()),
+            Alloc::Forward2 => PortRef::from(self.forward2.clone()),
             _ => panic!("Invalid id"),
         }
     }
-    fn connect(&mut self, pin: PortRef, id: usize) {
+    fn connect(&mut self, pin: PortRef, id: Connect) {
         match id {
-            0 => self.forward1.borrow_mut().rs = Some(pin.clone()),
-            1 => self.forward2.borrow_mut().rs = Some(pin.clone()),
-            2 => {
+            Connect::Rs1 => self.forward1.borrow_mut().rs = Some(pin.clone()),
+            Connect::Rs2 => self.forward2.borrow_mut().rs = Some(pin.clone()),
+            Connect::RdMem => {
                 self.forward1.borrow_mut().rd_mem = Some(pin.clone());
                 self.forward2.borrow_mut().rd_mem = Some(pin.clone());
             }
-            3 => {
+            Connect::RdMemWrite => {
                 self.forward1.borrow_mut().rd_mem_write = Some(pin.clone());
                 self.forward2.borrow_mut().rd_mem_write = Some(pin.clone());
             }
-            4 => {
+            Connect::RdWb => {
                 self.forward1.borrow_mut().rd_wb = Some(pin.clone());
                 self.forward2.borrow_mut().rd_wb = Some(pin.clone());
             }
-            5 => {
+            Connect::RdWbWrite => {
                 self.forward1.borrow_mut().rd_wb_write = Some(pin.clone());
                 self.forward2.borrow_mut().rd_wb_write = Some(pin.clone());
             }
@@ -145,12 +147,15 @@ mod tests {
         consts.push(rd_mem_write);
         consts.push(rd_wb);
         consts.push(rd_wb_write);
-        forward.connect(consts.alloc(0), Connect::Rs1.into());
-        forward.connect(consts.alloc(1), Connect::Rs2.into());
-        forward.connect(consts.alloc(2), Connect::RdMem.into());
-        forward.connect(consts.alloc(3), Connect::RdMemWrite.into());
-        forward.connect(consts.alloc(4), Connect::RdWb.into());
-        forward.connect(consts.alloc(5), Connect::RdWbWrite.into());
+        forward.connect(consts.alloc(ConstsAlloc::Out(0)), Connect::Rs1.into());
+        forward.connect(consts.alloc(ConstsAlloc::Out(1)), Connect::Rs2.into());
+        forward.connect(consts.alloc(ConstsAlloc::Out(2)), Connect::RdMem.into());
+        forward.connect(
+            consts.alloc(ConstsAlloc::Out(3)),
+            Connect::RdMemWrite.into(),
+        );
+        forward.connect(consts.alloc(ConstsAlloc::Out(4)), Connect::RdWb.into());
+        forward.connect(consts.alloc(ConstsAlloc::Out(5)), Connect::RdWbWrite.into());
         let forward1_ = forward.alloc(Alloc::Forward1.into());
         let forward2_ = forward.alloc(Alloc::Forward2.into());
         assert_eq!(forward1_.read(), forward1);

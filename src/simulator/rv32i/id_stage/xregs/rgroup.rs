@@ -65,25 +65,29 @@ impl ControlBuilder for RegGroupBuilder {
     }
 }
 impl PortBuilder for RegGroupBuilder {
-    fn connect(&mut self, pin: PortRef, id: usize) {
+    type Alloc = Alloc;
+    type Connect = Connect;
+    fn connect(&mut self, pin: PortRef, id: Connect) {
         match id {
-            0 => self.rd = Some(pin),
-            1 => self.rd_data = Some(pin),
-            2 => self.write = Some(pin),
+            Connect::Rd => self.rd = Some(pin),
+            Connect::RdData => self.rd_data = Some(pin),
+            Connect::Write => self.write = Some(pin),
             _ => panic!("Invalid id"),
         }
     }
-    fn alloc(&mut self, _id: usize) -> PortRef {
+    fn alloc(&mut self, _id: Alloc) -> PortRef {
         unreachable!("RegGroup has no output")
     }
 }
 impl IndexPortBuilder for RegGroupBuilder {
-    fn index_connect(&mut self, pin: IndexPortRef, id: usize) {
+    type IndexAlloc = IndexAlloc;
+    type IndexConnect = IndexConnect;
+    fn index_connect(&mut self, pin: IndexPortRef, id: IndexConnect) {
         unreachable!("RegGroup has no index output")
     }
-    fn index_alloc(&mut self, id: usize) -> IndexPortRef {
+    fn index_alloc(&mut self, id: IndexAlloc) -> IndexPortRef {
         match id {
-            0 => self.x.shared().into(),
+            IndexAlloc::X => self.x.shared().into(),
             _ => unreachable!("RegGroup has no index > 0 output"),
         }
     }

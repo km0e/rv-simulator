@@ -4,27 +4,10 @@ pub enum Alloc {
     Out = 0,
 }
 
-impl From<Alloc> for usize {
-    fn from(alloc: Alloc) -> usize {
-        match alloc {
-            Alloc::Out => 0,
-        }
-    }
-}
-
 pub enum Connect {
     In,
     Enable,
     Clear,
-}
-impl From<Connect> for usize {
-    fn from(alloc: Connect) -> usize {
-        match alloc {
-            Connect::In => 0,
-            Connect::Enable => 1,
-            Connect::Clear => 2,
-        }
-    }
 }
 #[derive(Default)]
 pub struct RegBuilder {
@@ -46,15 +29,17 @@ impl ControlBuilder for RegBuilder {
     }
 }
 impl PortBuilder for RegBuilder {
-    fn connect(&mut self, pin: PortRef, id: usize) {
+    type Alloc = Alloc;
+    type Connect = Connect;
+    fn connect(&mut self, pin: PortRef, id: Self::Connect) {
         match id {
-            0 => self.inner.borrow_mut().in_ = Some(pin),
-            1 => self.inner.borrow_mut().enable = Some(pin),
-            2 => self.inner.borrow_mut().clear = Some(pin),
+            Self::Connect::In => self.inner.borrow_mut().in_ = Some(pin),
+            Self::Connect::Enable => self.inner.borrow_mut().enable = Some(pin),
+            Self::Connect::Clear => self.inner.borrow_mut().clear = Some(pin),
             _ => panic!("Invalid id"),
         }
     }
-    fn alloc(&mut self, _: usize) -> PortRef {
+    fn alloc(&mut self, _: Self::Alloc) -> PortRef {
         PortRef::from(self.inner.borrow().output.clone())
     }
 }
@@ -117,10 +102,10 @@ mod tests {
         constant.push(2);
         constant.push(1);
         constant.push(1);
-        tb.connect(constant.alloc(0), Connect::In.into());
-        let t = tb.alloc(0);
-        tb.connect(constant.alloc(1), Connect::Enable.into());
-        tb.connect(constant.alloc(2), Connect::Clear.into());
+        tb.connect(constant.alloc(ConstsAlloc::Out(0)), Connect::In.into());
+        let t = tb.alloc(RegAlloc::Out);
+        tb.connect(constant.alloc(ConstsAlloc::Out(1)), Connect::Enable.into());
+        tb.connect(constant.alloc(ConstsAlloc::Out(2)), Connect::Clear.into());
         let tc = tb.build();
         assert_eq!(t.read(), 1);
         tc.rasing_edge();

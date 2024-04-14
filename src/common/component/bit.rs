@@ -1,4 +1,10 @@
 use crate::common::abi::*;
+pub enum Alloc {
+    Out = 0,
+}
+pub enum Connect {
+    In = 0,
+}
 #[derive(Clone)]
 pub struct BitBuilder {
     pub inner: PortShared<Bit>,
@@ -14,12 +20,12 @@ impl BitBuilder {
     }
 }
 impl PortBuilder for BitBuilder {
-    fn alloc(&mut self, id: usize) -> PortRef {
-        assert_eq!(id, 0);
+    type Alloc = Alloc;
+    type Connect = Connect;
+    fn alloc(&mut self, id: Self::Alloc) -> PortRef {
         PortRef::from(self.inner.clone())
     }
-    fn connect(&mut self, pin: PortRef, id: usize) {
-        assert_eq!(id, 0);
+    fn connect(&mut self, pin: PortRef, id: Self::Connect) {
         self.inner.borrow_mut().data = Some(pin);
     }
 }
@@ -40,7 +46,7 @@ impl Port for Bit {
     }
 }
 pub mod build {
-    pub use super::Bit as BitAlloc;
-    pub use super::Bit as BitConnect;
+    pub use super::Alloc as BitAlloc;
     pub use super::BitBuilder;
+    pub use super::Connect as BitConnect;
 }

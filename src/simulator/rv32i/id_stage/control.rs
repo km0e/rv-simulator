@@ -14,21 +14,8 @@ pub enum Alloc {
     RegWrite = 9,
     Load = 10,
 }
-impl From<Alloc> for usize {
-    fn from(alloc: Alloc) -> usize {
-        match alloc {
-            Alloc::BranchType => 0,
-            Alloc::AluCtrl => 1,
-            Alloc::ImmSel => 2,
-            Alloc::PcSel => 3,
-            Alloc::BranchEn => 4,
-            Alloc::MemWrite => 5,
-            Alloc::Jal_ => 7,
-            Alloc::WbSel => 8,
-            Alloc::RegWrite => 9,
-            Alloc::Load => 10,
-        }
-    }
+pub enum Connect {
+    Opcode,
 }
 pub struct CtrlSigBuilder {
     branch_type: BitBuilder,
@@ -61,23 +48,24 @@ impl CtrlSigBuilder {
 }
 
 impl PortBuilder for CtrlSigBuilder {
-    fn alloc(&mut self, id: usize) -> PortRef {
+    type Alloc = Alloc;
+    type Connect = Connect;
+    fn alloc(&mut self, id: Alloc) -> PortRef {
         match id {
-            0 => PortRef::from(self.branch_type.inner.clone()),
-            1 => PortRef::from(self.alu_ctl.clone()),
-            2 => PortRef::from(self.imm_sel.clone()),
-            3 => PortRef::from(self.pc_sel.clone()),
-            4 => PortRef::from(self.branch_sel.clone()),
-            5 => PortRef::from(self.mem_write.clone()),
-            7 => PortRef::from(self.jal_.clone()),
-            8 => PortRef::from(self.wb_sel.clone()),
-            9 => PortRef::from(self.reg_write.clone()),
-            10 => PortRef::from(self.load.clone()),
+            Alloc::BranchType => PortRef::from(self.branch_type.inner.clone()),
+            Alloc::AluCtrl => PortRef::from(self.alu_ctl.clone()),
+            Alloc::ImmSel => PortRef::from(self.imm_sel.clone()),
+            Alloc::PcSel => PortRef::from(self.pc_sel.clone()),
+            Alloc::BranchEn => PortRef::from(self.branch_sel.clone()),
+            Alloc::MemWrite => PortRef::from(self.mem_write.clone()),
+            Alloc::Jal_ => PortRef::from(self.jal_.clone()),
+            Alloc::WbSel => PortRef::from(self.wb_sel.clone()),
+            Alloc::RegWrite => PortRef::from(self.reg_write.clone()),
+            Alloc::Load => PortRef::from(self.load.clone()),
             _ => panic!("Invalid id"),
         }
     }
-    fn connect(&mut self, pin: PortRef, id: usize) {
-        assert!(id == 0);
+    fn connect(&mut self, pin: PortRef, id: Connect) {
         self.alu_ctl.borrow_mut().input = Some(pin.clone());
         self.imm_sel.borrow_mut().input = Some(pin.clone());
         self.pc_sel.borrow_mut().input = Some(pin.clone());
@@ -87,7 +75,7 @@ impl PortBuilder for CtrlSigBuilder {
         self.wb_sel.borrow_mut().input = Some(pin.clone());
         self.reg_write.borrow_mut().input = Some(pin.clone());
         self.load.borrow_mut().input = Some(pin.clone());
-        self.branch_type.connect(pin, 0);
+        self.branch_type.connect(pin, BitConnect::In);
     }
 }
 pub struct Control {}

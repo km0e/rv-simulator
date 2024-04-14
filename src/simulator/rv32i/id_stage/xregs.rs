@@ -66,23 +66,25 @@ impl XregsBuilder {
     }
 }
 impl PortBuilder for XregsBuilder {
-    fn connect(&mut self, pin: PortRef, id: usize) {
+    type Alloc = Alloc;
+    type Connect = Connect;
+    fn connect(&mut self, pin: PortRef, id: Connect) {
         match id {
-            0 => self.mux_rs1.connect(pin, RegMuxConnect::Rs.into()),
-            1 => self.mux_rs2.connect(pin, RegMuxConnect::Rs.into()),
-            2 => {
+            Connect::Rs1 => self.mux_rs1.connect(pin, RegMuxConnect::Rs.into()),
+            Connect::Rs2 => self.mux_rs2.connect(pin, RegMuxConnect::Rs.into()),
+            Connect::Rd => {
                 self.mux_rs1.connect(pin.clone(), RegMuxConnect::Rd.into());
                 self.mux_rs2.connect(pin.clone(), RegMuxConnect::Rd.into());
                 self.x.connect(pin, RegGroupConnect::Rd.into());
             }
-            3 => {
+            Connect::RdData => {
                 self.mux_rs1
                     .connect(pin.clone(), RegMuxConnect::RdData.into());
                 self.mux_rs2
                     .connect(pin.clone(), RegMuxConnect::RdData.into());
                 self.x.connect(pin, RegGroupConnect::RdData.into());
             }
-            4 => {
+            Connect::Write => {
                 self.mux_rs1
                     .connect(pin.clone(), RegMuxConnect::Write.into());
                 self.mux_rs2
@@ -92,10 +94,10 @@ impl PortBuilder for XregsBuilder {
             _ => panic!("Invalid id"),
         }
     }
-    fn alloc(&mut self, id: usize) -> PortRef {
+    fn alloc(&mut self, id: Alloc) -> PortRef {
         match id {
-            0 => self.mux_rs1.alloc(RegMuxAlloc::Out.into()),
-            1 => self.mux_rs2.alloc(RegMuxAlloc::Out.into()),
+            Alloc::R1Data => self.mux_rs1.alloc(RegMuxAlloc::Out.into()),
+            Alloc::R2Data => self.mux_rs2.alloc(RegMuxAlloc::Out.into()),
             _ => panic!("Invalid id"),
         }
     }
@@ -118,11 +120,11 @@ mod tests {
         consts.push(0);
         consts.push(1);
         consts.push(4);
-        rsb.connect(consts.alloc(0), Connect::Rs1.into());
-        rsb.connect(consts.alloc(1), Connect::Rs2.into());
-        rsb.connect(consts.alloc(0), Connect::Rd.into());
-        rsb.connect(consts.alloc(1), Connect::Write.into());
-        rsb.connect(consts.alloc(2), Connect::RdData.into());
+        rsb.connect(consts.alloc(ConstsAlloc::Out(0)), Connect::Rs1.into());
+        rsb.connect(consts.alloc(ConstsAlloc::Out(1)), Connect::Rs2.into());
+        rsb.connect(consts.alloc(ConstsAlloc::Out(0)), Connect::Rd.into());
+        rsb.connect(consts.alloc(ConstsAlloc::Out(1)), Connect::Write.into());
+        rsb.connect(consts.alloc(ConstsAlloc::Out(2)), Connect::RdData.into());
         let r1 = rsb.alloc(Alloc::R1Data.into());
         let r2 = rsb.alloc(Alloc::R2Data.into());
         let rs = rsb.build();

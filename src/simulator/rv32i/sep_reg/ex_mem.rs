@@ -13,21 +13,6 @@ pub enum Alloc {
     MemRead = 8,
 }
 
-impl From<Alloc> for usize {
-    fn from(id: Alloc) -> Self {
-        match id {
-            Alloc::RegWrite => 0,
-            Alloc::WbSel => 1,
-            Alloc::MemWrite => 2,
-            Alloc::Npc => 4,
-            Alloc::AluRes => 5,
-            Alloc::Rs2Data => 6,
-            Alloc::Rd => 7,
-            Alloc::MemRead => 8,
-        }
-    }
-}
-
 pub enum Connect {
     RegWrite = 0,
     WbSel = 1,
@@ -40,23 +25,6 @@ pub enum Connect {
     Ebable = 8,
     Clear = 9,
     MemRead = 10,
-}
-
-impl From<Connect> for usize {
-    fn from(id: Connect) -> Self {
-        match id {
-            Connect::RegWrite => 0,
-            Connect::WbSel => 1,
-            Connect::MemWrite => 2,
-            Connect::Npc => 4,
-            Connect::AluRes => 5,
-            Connect::Rs2Data => 6,
-            Connect::Rd => 7,
-            Connect::Ebable => 8,
-            Connect::Clear => 9,
-            Connect::MemRead => 10,
-        }
-    }
 }
 
 #[derive(Default)]
@@ -96,29 +64,31 @@ impl ControlBuilder for ExMemBuilder {
     }
 }
 impl PortBuilder for ExMemBuilder {
-    fn alloc(&mut self, id: usize) -> PortRef {
+    type Alloc = Alloc;
+    type Connect = Connect;
+    fn alloc(&mut self, id: Alloc) -> PortRef {
         match id {
-            0 => self.reg_write.alloc(RegAlloc::Out.into()),
-            1 => self.wb_sel.alloc(RegAlloc::Out.into()),
-            2 => self.mem_write.alloc(RegAlloc::Out.into()),
-            4 => self.npc.alloc(RegAlloc::Out.into()),
-            5 => self.alu_res.alloc(RegAlloc::Out.into()),
-            6 => self.rs2_data.alloc(RegAlloc::Out.into()),
-            7 => self.rd.alloc(RegAlloc::Out.into()),
-            8 => self.mem_read.alloc(RegAlloc::Out.into()),
+            Alloc::RegWrite => self.reg_write.alloc(RegAlloc::Out.into()),
+            Alloc::WbSel => self.wb_sel.alloc(RegAlloc::Out.into()),
+            Alloc::MemWrite => self.mem_write.alloc(RegAlloc::Out.into()),
+            Alloc::Npc => self.npc.alloc(RegAlloc::Out.into()),
+            Alloc::AluRes => self.alu_res.alloc(RegAlloc::Out.into()),
+            Alloc::Rs2Data => self.rs2_data.alloc(RegAlloc::Out.into()),
+            Alloc::Rd => self.rd.alloc(RegAlloc::Out.into()),
+            Alloc::MemRead => self.mem_read.alloc(RegAlloc::Out.into()),
             _ => panic!("Invalid id"),
         }
     }
-    fn connect(&mut self, pin: PortRef, id: usize) {
+    fn connect(&mut self, pin: PortRef, id: Connect) {
         match id {
-            0 => self.reg_write.connect(pin, RegConnect::In.into()),
-            1 => self.wb_sel.connect(pin, RegConnect::In.into()),
-            2 => self.mem_write.connect(pin, RegConnect::In.into()),
-            4 => self.npc.connect(pin, RegConnect::In.into()),
-            5 => self.alu_res.connect(pin, RegConnect::In.into()),
-            6 => self.rs2_data.connect(pin, RegConnect::In.into()),
-            7 => self.rd.connect(pin, RegConnect::In.into()),
-            8 => {
+            Connect::RegWrite => self.reg_write.connect(pin, RegConnect::In.into()),
+            Connect::WbSel => self.wb_sel.connect(pin, RegConnect::In.into()),
+            Connect::MemWrite => self.mem_write.connect(pin, RegConnect::In.into()),
+            Connect::Npc => self.npc.connect(pin, RegConnect::In.into()),
+            Connect::AluRes => self.alu_res.connect(pin, RegConnect::In.into()),
+            Connect::Rs2Data => self.rs2_data.connect(pin, RegConnect::In.into()),
+            Connect::Rd => self.rd.connect(pin, RegConnect::In.into()),
+            Connect::Ebable => {
                 self.reg_write
                     .connect(pin.clone(), RegConnect::Enable.into());
                 self.wb_sel.connect(pin.clone(), RegConnect::Enable.into());
@@ -131,7 +101,7 @@ impl PortBuilder for ExMemBuilder {
                 self.rd.connect(pin.clone(), RegConnect::Enable.into());
                 self.mem_read.connect(pin, RegConnect::Enable.into());
             }
-            9 => {
+            Connect::Clear => {
                 self.reg_write
                     .connect(pin.clone(), RegConnect::Clear.into());
                 self.wb_sel.connect(pin.clone(), RegConnect::Clear.into());
@@ -143,7 +113,7 @@ impl PortBuilder for ExMemBuilder {
                 self.rd.connect(pin.clone(), RegConnect::Clear.into());
                 self.mem_read.connect(pin, RegConnect::Clear.into());
             }
-            10 => self.mem_read.connect(pin, RegConnect::In.into()),
+            Connect::MemRead => self.mem_read.connect(pin, RegConnect::In.into()),
             _ => panic!("Invalid id"),
         }
     }

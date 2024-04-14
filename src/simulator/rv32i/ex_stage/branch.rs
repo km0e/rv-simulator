@@ -32,19 +32,21 @@ pub struct BranchBuilder {
     inner: PortShared<Alu>,
 }
 impl PortBuilder for BranchBuilder {
-    fn alloc(&mut self, id: usize) -> PortRef {
+    type Alloc = Alloc;
+    type Connect = Connect;
+    fn alloc(&mut self, id: Alloc) -> PortRef {
         match id {
-            0 => PortRef::from(self.inner.clone()),
+            Alloc::BK => PortRef::from(self.inner.clone()),
             _ => panic!("Invalid id"),
         }
     }
-    fn connect(&mut self, pin: PortRef, id: usize) {
+    fn connect(&mut self, pin: PortRef, id: Connect) {
         match id {
-            0 => self.inner.borrow_mut().branchtype = Some(pin.clone()),
-            1 => self.inner.borrow_mut().op1 = Some(pin.clone()),
-            2 => self.inner.borrow_mut().op2 = Some(pin.clone()),
-            3 => self.inner.borrow_mut().jal_ = Some(pin.clone()),
-            4 => self.inner.borrow_mut().branchsel = Some(pin.clone()),
+            Connect::BranchType => self.inner.borrow_mut().branchtype = Some(pin.clone()),
+            Connect::Op1 => self.inner.borrow_mut().op1 = Some(pin.clone()),
+            Connect::Op2 => self.inner.borrow_mut().op2 = Some(pin.clone()),
+            Connect::Jal_ => self.inner.borrow_mut().jal_ = Some(pin.clone()),
+            Connect::BranchSel => self.inner.borrow_mut().branchsel = Some(pin.clone()),
             _ => panic!("Invalid id"),
         }
     }
@@ -98,12 +100,12 @@ mod tests {
         consts.push(0b1);
         consts.push(0);
         consts.push(1);
-        alub.connect(consts.alloc(0), 1);
-        alub.connect(consts.alloc(1), 2);
-        alub.connect(consts.alloc(2), 0);
-        alub.connect(consts.alloc(0), 3);
-        alub.connect(consts.alloc(0), 4);
-        let alu = alub.alloc(0);
+        alub.connect(consts.alloc(ConstsAlloc::Out(0)), Connect::Op1);
+        alub.connect(consts.alloc(ConstsAlloc::Out(1)), Connect::Op2);
+        alub.connect(consts.alloc(ConstsAlloc::Out(2)), Connect::BranchType);
+        alub.connect(consts.alloc(ConstsAlloc::Out(0)), Connect::Jal_);
+        alub.connect(consts.alloc(ConstsAlloc::Out(0)), Connect::BranchSel);
+        let alu = alub.alloc(Alloc::BK);
         assert_eq!(alu.read(), 1);
     }
 }

@@ -1,17 +1,24 @@
 use crate::common::abi::*;
 use crate::common::build::*;
-
+pub enum Alloc {
+    Out(usize),
+}
+pub enum Connect {}
 #[derive(Default)]
 pub struct ConstsBuilder {
     data: Vec<PortShared<Lat>>,
 }
 impl PortBuilder for ConstsBuilder {
-    fn connect(&mut self, _pin: PortRef, _id: usize) {
+    type Connect = ();
+    type Alloc = Alloc;
+    fn connect(&mut self, _pin: PortRef, _id: Self::Connect) {
         unreachable!("ConstsBuilder does not have any input");
     }
-    fn alloc(&mut self, id: usize) -> PortRef {
-        assert!(id < self.data.len());
-        PortRef::from(self.data[id].clone())
+    fn alloc(&mut self, id: Self::Alloc) -> PortRef {
+        let ps = match id {
+            Alloc::Out(id) => self.data[id].clone(),
+        };
+        ps.into()
     }
 }
 impl ConstsBuilder {
@@ -20,6 +27,8 @@ impl ConstsBuilder {
     }
 }
 pub mod build {
+    pub use super::Alloc as ConstsAlloc;
+    pub use super::Connect as ConstsConnect;
     pub use super::ConstsBuilder;
 }
 #[cfg(test)]
@@ -31,7 +40,7 @@ mod tests {
         let mut consts = ConstsBuilder::default();
         consts.push(1);
         consts.push(2);
-        assert_eq!(consts.alloc(0).read(), 1);
-        assert_eq!(consts.alloc(1).read(), 2);
+        assert_eq!(consts.alloc(Alloc::Out(0)).read(), 1);
+        assert_eq!(consts.alloc(Alloc::Out(1)).read(), 2);
     }
 }

@@ -1,17 +1,21 @@
 use crate::common::abi::*;
 
-use self::control::CtrlSigBuilder;
-use self::decode::DecodeBuilder;
-use self::imm::ImmBuilder;
-use self::xregs::XregsBuilder;
+use control::Alloc as CtrlAlloc;
+use control::Connect as CtrlConnect;
+use control::CtrlSigBuilder;
+use decode::Alloc as DecodeAlloc;
+use decode::Connect as DecodeConnect;
+use decode::DecodeBuilder;
+use imm::Alloc as ImmAlloc;
+use imm::Connect as ImmConnect;
+use imm::ImmBuilder;
+use xregs::Alloc as XregsAlloc;
+use xregs::Connect as XregsConnect;
+use xregs::XregsBuilder;
 mod control;
 mod decode;
 mod imm;
 mod xregs;
-use control::Alloc as ControlAlloc;
-use decode::Alloc as DecodeAlloc;
-use xregs::Alloc as RegsAlloc;
-use xregs::Connect as RegsConnect;
 pub enum Alloc {
     Rs1 = 0,
     Rs2 = 1,
@@ -31,29 +35,6 @@ pub enum Alloc {
     Rs1Data = 15,
     Rs2Data = 16,
     Load = 17,
-}
-impl From<Alloc> for usize {
-    fn from(alloc: Alloc) -> usize {
-        match alloc {
-            Alloc::Rs1 => 0,
-            Alloc::Rs2 => 1,
-            Alloc::Rd => 2,
-            Alloc::Opcode => 3,
-            Alloc::Imm => 4,
-            Alloc::BranchType => 5,
-            Alloc::AluCtrl => 6,
-            Alloc::ImmSel => 7,
-            Alloc::PcSel => 8,
-            Alloc::BranchEn => 9,
-            Alloc::Jal_ => 10,
-            Alloc::MemWrite => 12,
-            Alloc::WbSel => 13,
-            Alloc::RegWrite => 14,
-            Alloc::Rs1Data => 15,
-            Alloc::Rs2Data => 16,
-            Alloc::Load => 17,
-        }
-    }
 }
 pub enum Connect {
     Inst = 0,
@@ -84,14 +65,14 @@ impl IdStageBuilder {
         let mut id_decode = DecodeBuilder::new();
         // set up imm
         let mut id_imm = ImmBuilder::default();
-        id_imm.connect(id_decode.alloc(3), 0);
+        id_imm.connect(id_decode.alloc(DecodeAlloc::Opcode), ImmConnect::Opcode);
         // set up regs
         let mut id_regs = XregsBuilder::new(esp);
-        id_regs.connect(id_decode.alloc(0), RegsConnect::Rs1.into());
-        id_regs.connect(id_decode.alloc(1), RegsConnect::Rs2.into());
+        id_regs.connect(id_decode.alloc(DecodeAlloc::Rs1), XregsConnect::Rs1);
+        id_regs.connect(id_decode.alloc(DecodeAlloc::Rs2), XregsConnect::Rs2);
         // set up control
         let mut id_control = CtrlSigBuilder::new();
-        id_control.connect(id_decode.alloc(DecodeAlloc::Opcode.into()), 0);
+        id_control.connect(id_decode.alloc(DecodeAlloc::Opcode), CtrlConnect::Opcode);
         IdStageBuilder {
             control: id_control,
             decode: id_decode,
@@ -101,37 +82,39 @@ impl IdStageBuilder {
     }
 }
 impl PortBuilder for IdStageBuilder {
-    fn alloc(&mut self, id: usize) -> PortRef {
+    type Alloc = Alloc;
+    type Connect = Connect;
+    fn alloc(&mut self, id: Alloc) -> PortRef {
         match id {
-            0 => self.decode.alloc(DecodeAlloc::Rs1.into()),
-            1 => self.decode.alloc(DecodeAlloc::Rs2.into()),
-            2 => self.decode.alloc(DecodeAlloc::Rd.into()),
-            3 => self.decode.alloc(DecodeAlloc::Opcode.into()),
-            4 => self.imm.alloc(0),
-            5 => self.control.alloc(ControlAlloc::BranchType.into()),
-            6 => self.control.alloc(ControlAlloc::AluCtrl.into()),
-            7 => self.control.alloc(ControlAlloc::ImmSel.into()),
-            8 => self.control.alloc(ControlAlloc::PcSel.into()),
-            9 => self.control.alloc(ControlAlloc::BranchEn.into()),
-            10 => self.control.alloc(ControlAlloc::Jal_.into()),
-            12 => self.control.alloc(ControlAlloc::MemWrite.into()),
-            13 => self.control.alloc(ControlAlloc::WbSel.into()),
-            14 => self.control.alloc(ControlAlloc::RegWrite.into()),
-            15 => self.xregs.alloc(RegsAlloc::R1Data.into()),
-            16 => self.xregs.alloc(RegsAlloc::R2Data.into()),
-            17 => self.control.alloc(ControlAlloc::Load.into()),
+            Alloc::Rs1 => self.decode.alloc(DecodeAlloc::Rs1),
+            Alloc::Rs2 => self.decode.alloc(DecodeAlloc::Rs2),
+            Alloc::Rd => self.decode.alloc(DecodeAlloc::Rd),
+            Alloc::Opcode => self.decode.alloc(DecodeAlloc::Opcode),
+            Alloc::Imm => self.imm.alloc(ImmAlloc::Out),
+            Alloc::BranchType => self.control.alloc(CtrlAlloc::BranchType),
+            Alloc::AluCtrl => self.control.alloc(CtrlAlloc::AluCtrl),
+            Alloc::ImmSel => self.control.alloc(CtrlAlloc::ImmSel),
+            Alloc::PcSel => self.control.alloc(CtrlAlloc::PcSel),
+            Alloc::BranchEn => self.control.alloc(CtrlAlloc::BranchEn),
+            Alloc::Jal_ => self.control.alloc(CtrlAlloc::Jal_),
+            Alloc::MemWrite => self.control.alloc(CtrlAlloc::MemWrite),
+            Alloc::WbSel => self.control.alloc(CtrlAlloc::WbSel),
+            Alloc::RegWrite => self.control.alloc(CtrlAlloc::RegWrite),
+            Alloc::Rs1Data => self.xregs.alloc(XregsAlloc::R1Data),
+            Alloc::Rs2Data => self.xregs.alloc(XregsAlloc::R2Data),
+            Alloc::Load => self.control.alloc(CtrlAlloc::Load),
             _ => panic!("Invalid id"),
         }
     }
-    fn connect(&mut self, pin: PortRef, id: usize) {
+    fn connect(&mut self, pin: PortRef, id: Connect) {
         match id {
-            0 => {
-                self.decode.connect(pin.clone(), 0);
-                self.imm.connect(pin.clone(), 1);
+            Connect::Inst => {
+                self.decode.connect(pin.clone(), DecodeConnect::Inst);
+                self.imm.connect(pin.clone(), ImmConnect::Inst);
             }
-            1 => self.xregs.connect(pin.clone(), RegsConnect::Rd.into()),
-            2 => self.xregs.connect(pin.clone(), RegsConnect::RdData.into()),
-            3 => self.xregs.connect(pin.clone(), RegsConnect::Write.into()),
+            Connect::Rd => self.xregs.connect(pin.clone(), XregsConnect::Rd),
+            Connect::RdData => self.xregs.connect(pin.clone(), XregsConnect::RdData),
+            Connect::RegWrite => self.xregs.connect(pin.clone(), XregsConnect::Write),
             _ => panic!("Invalid id"),
         }
     }
@@ -178,27 +161,27 @@ mod tests {
         constb.push(test_connect.rd);
         constb.push(test_connect.rd_data);
         constb.push(test_connect.reg_write);
-        idb.connect(constb.alloc(0), Connect::Inst.into());
-        idb.connect(constb.alloc(1), Connect::Rd.into());
-        idb.connect(constb.alloc(2), Connect::RdData.into());
-        idb.connect(constb.alloc(3), Connect::RegWrite.into());
-        let rs1 = idb.alloc(Alloc::Rs1.into());
-        let rs2 = idb.alloc(Alloc::Rs2.into());
-        let rd = idb.alloc(Alloc::Rd.into());
-        let opcode = idb.alloc(Alloc::Opcode.into());
-        let imm = idb.alloc(Alloc::Imm.into());
-        let branch_type = idb.alloc(Alloc::BranchType.into());
-        let alu_ctrl = idb.alloc(Alloc::AluCtrl.into());
-        let imm_sel = idb.alloc(Alloc::ImmSel.into());
-        let pc_sel = idb.alloc(Alloc::PcSel.into());
-        let branch_en = idb.alloc(Alloc::BranchEn.into());
-        let jal_ = idb.alloc(Alloc::Jal_.into());
-        let mem_write = idb.alloc(Alloc::MemWrite.into());
-        let wb_sel = idb.alloc(Alloc::WbSel.into());
-        let reg_write = idb.alloc(Alloc::RegWrite.into());
-        let rs1_data = idb.alloc(Alloc::Rs1Data.into());
-        let rs2_data = idb.alloc(Alloc::Rs2Data.into());
-        let load = idb.alloc(Alloc::Load.into());
+        idb.connect(constb.alloc(ConstsAlloc::Out(0)), Connect::Inst);
+        idb.connect(constb.alloc(ConstsAlloc::Out(1)), Connect::Rd);
+        idb.connect(constb.alloc(ConstsAlloc::Out(2)), Connect::RdData);
+        idb.connect(constb.alloc(ConstsAlloc::Out(3)), Connect::RegWrite);
+        let rs1 = idb.alloc(Alloc::Rs1);
+        let rs2 = idb.alloc(Alloc::Rs2);
+        let rd = idb.alloc(Alloc::Rd);
+        let opcode = idb.alloc(Alloc::Opcode);
+        let imm = idb.alloc(Alloc::Imm);
+        let branch_type = idb.alloc(Alloc::BranchType);
+        let alu_ctrl = idb.alloc(Alloc::AluCtrl);
+        let imm_sel = idb.alloc(Alloc::ImmSel);
+        let pc_sel = idb.alloc(Alloc::PcSel);
+        let branch_en = idb.alloc(Alloc::BranchEn);
+        let jal_ = idb.alloc(Alloc::Jal_);
+        let mem_write = idb.alloc(Alloc::MemWrite);
+        let wb_sel = idb.alloc(Alloc::WbSel);
+        let reg_write = idb.alloc(Alloc::RegWrite);
+        let rs1_data = idb.alloc(Alloc::Rs1Data);
+        let rs2_data = idb.alloc(Alloc::Rs2Data);
+        let load = idb.alloc(Alloc::Load);
         idb.build();
         assert_eq!(rs1.read(), test_alloc.rs1);
         assert_eq!(rs2.read(), test_alloc.rs2);

@@ -23,31 +23,6 @@ pub enum Alloc {
     Opco = 18,
     LoadSignal = 19,
 }
-impl From<Alloc> for usize {
-    fn from(id: Alloc) -> Self {
-        match id {
-            Alloc::RegWrite => 0,
-            Alloc::WbSel => 1,
-            Alloc::MemWrite => 2,
-            Alloc::Jal_ => 4,
-            Alloc::BranchEn => 5,
-            Alloc::PcSel => 6,
-            Alloc::ImmSel => 7,
-            Alloc::AluCtrl => 8,
-            Alloc::BranchType => 9,
-            Alloc::Npc => 10,
-            Alloc::Pc => 11,
-            Alloc::Rs1Data => 12,
-            Alloc::Rs2Data => 13,
-            Alloc::Imm => 14,
-            Alloc::Rs1 => 15,
-            Alloc::Rd => 16,
-            Alloc::Rs2 => 17,
-            Alloc::Opco => 18,
-            Alloc::LoadSignal => 18,
-        }
-    }
-}
 
 pub enum Connect {
     RegWrite = 0,
@@ -72,33 +47,6 @@ pub enum Connect {
     Enable = 19,
     Clear = 20,
     LoadSignal = 21,
-}
-impl From<Connect> for usize {
-    fn from(id: Connect) -> Self {
-        match id {
-            Connect::RegWrite => 0,
-            Connect::WbSel => 1,
-            Connect::MemWrite => 2,
-            Connect::Jal_ => 4,
-            Connect::BranchEn => 5,
-            Connect::PcSel => 6,
-            Connect::ImmSel => 7,
-            Connect::AluCtrl => 8,
-            Connect::BranchType => 9,
-            Connect::Npc => 10,
-            Connect::Pc => 11,
-            Connect::Rs1Data => 12,
-            Connect::Rs2Data => 13,
-            Connect::Imm => 14,
-            Connect::Rs1 => 15,
-            Connect::Rd => 16,
-            Connect::Rs2 => 17,
-            Connect::Opcode => 18,
-            Connect::Enable => 19,
-            Connect::Clear => 20,
-            Connect::LoadSignal => 21,
-        }
-    }
 }
 
 #[derive(Default)]
@@ -160,104 +108,95 @@ impl ControlBuilder for IdExBuilder {
     }
 }
 impl PortBuilder for IdExBuilder {
-    fn alloc(&mut self, id: usize) -> PortRef {
+    type Alloc = Alloc;
+    type Connect = Connect;
+    fn alloc(&mut self, id: Alloc) -> PortRef {
         match id {
-            0 => self.reg_write.alloc(RegAlloc::Out.into()),
-            1 => self.wb_sel.alloc(RegAlloc::Out.into()),
-            2 => self.mem_write.alloc(RegAlloc::Out.into()),
-            4 => self.jal_.alloc(RegAlloc::Out.into()),
-            5 => self.branch_sel.alloc(RegAlloc::Out.into()),
-            6 => self.pc_sel.alloc(RegAlloc::Out.into()),
-            7 => self.imm_sel.alloc(RegAlloc::Out.into()),
-            8 => self.alu_ctrl.alloc(RegAlloc::Out.into()),
-            9 => self.branch_type.alloc(RegAlloc::Out.into()),
-            10 => self.npc.alloc(RegAlloc::Out.into()),
-            11 => self.pc.alloc(RegAlloc::Out.into()),
-            12 => self.rs1_data.alloc(RegAlloc::Out.into()),
-            13 => self.rs2_data.alloc(RegAlloc::Out.into()),
-            14 => self.imm.alloc(RegAlloc::Out.into()),
-            15 => self.rs1.alloc(RegAlloc::Out.into()),
-            16 => self.rd.alloc(RegAlloc::Out.into()),
-            17 => self.rs2.alloc(RegAlloc::Out.into()),
-            18 => self.opco.alloc(RegAlloc::Out.into()),
-            19 => self.load_signal.alloc(RegAlloc::Out.into()),
+            Alloc::RegWrite => self.reg_write.alloc(RegAlloc::Out),
+            Alloc::WbSel => self.wb_sel.alloc(RegAlloc::Out),
+            Alloc::MemWrite => self.mem_write.alloc(RegAlloc::Out),
+            Alloc::Jal_ => self.jal_.alloc(RegAlloc::Out),
+            Alloc::BranchEn => self.branch_sel.alloc(RegAlloc::Out),
+            Alloc::PcSel => self.pc_sel.alloc(RegAlloc::Out),
+            Alloc::ImmSel => self.imm_sel.alloc(RegAlloc::Out),
+            Alloc::AluCtrl => self.alu_ctrl.alloc(RegAlloc::Out),
+            Alloc::BranchType => self.branch_type.alloc(RegAlloc::Out),
+            Alloc::Npc => self.npc.alloc(RegAlloc::Out),
+            Alloc::Pc => self.pc.alloc(RegAlloc::Out),
+            Alloc::Rs1Data => self.rs1_data.alloc(RegAlloc::Out),
+            Alloc::Rs2Data => self.rs2_data.alloc(RegAlloc::Out),
+            Alloc::Imm => self.imm.alloc(RegAlloc::Out),
+            Alloc::Rs1 => self.rs1.alloc(RegAlloc::Out),
+            Alloc::Rd => self.rd.alloc(RegAlloc::Out),
+            Alloc::Rs2 => self.rs2.alloc(RegAlloc::Out),
+            Alloc::Opco => self.opco.alloc(RegAlloc::Out),
+            Alloc::LoadSignal => self.load_signal.alloc(RegAlloc::Out),
             _ => panic!("Invalid id"),
         }
     }
-    fn connect(&mut self, pin: PortRef, id: usize) {
+    fn connect(&mut self, pin: PortRef, id: Connect) {
         match id {
-            0 => self.reg_write.connect(pin, RegConnect::In.into()),
-            1 => self.wb_sel.connect(pin, RegConnect::In.into()),
-            2 => self.mem_write.connect(pin, RegConnect::In.into()),
-            4 => self.jal_.connect(pin, RegConnect::In.into()),
-            5 => self.branch_sel.connect(pin, RegConnect::In.into()),
-            6 => self.pc_sel.connect(pin, RegConnect::In.into()),
-            7 => self.imm_sel.connect(pin, RegConnect::In.into()),
-            8 => self.alu_ctrl.connect(pin, RegConnect::In.into()),
-            9 => self.branch_type.connect(pin, RegConnect::In.into()),
-            10 => self.npc.connect(pin, RegConnect::In.into()),
-            11 => self.pc.connect(pin, RegConnect::In.into()),
-            12 => self.rs1_data.connect(pin, RegConnect::In.into()),
-            13 => self.rs2_data.connect(pin, RegConnect::In.into()),
-            14 => self.imm.connect(pin, RegConnect::In.into()),
-            15 => self.rs1.connect(pin, RegConnect::In.into()),
-            16 => self.rd.connect(pin, RegConnect::In.into()),
-            17 => self.rs2.connect(pin, RegConnect::In.into()),
-            18 => self.opco.connect(pin, RegConnect::In.into()),
-            19 => {
-                self.reg_write
-                    .connect(pin.clone(), RegConnect::Enable.into());
-                self.wb_sel.connect(pin.clone(), RegConnect::Enable.into());
-                self.mem_write
-                    .connect(pin.clone(), RegConnect::Enable.into());
-                self.jal_.connect(pin.clone(), RegConnect::Enable.into());
-                self.branch_sel
-                    .connect(pin.clone(), RegConnect::Enable.into());
-                self.pc_sel.connect(pin.clone(), RegConnect::Enable.into());
-                self.imm_sel.connect(pin.clone(), RegConnect::Enable.into());
-                self.alu_ctrl
-                    .connect(pin.clone(), RegConnect::Enable.into());
-                self.branch_type
-                    .connect(pin.clone(), RegConnect::Enable.into());
-                self.npc.connect(pin.clone(), RegConnect::Enable.into());
-                self.pc.connect(pin.clone(), RegConnect::Enable.into());
-                self.rs1_data
-                    .connect(pin.clone(), RegConnect::Enable.into());
-                self.rs2_data
-                    .connect(pin.clone(), RegConnect::Enable.into());
-                self.imm.connect(pin.clone(), RegConnect::Enable.into());
-                self.rs1.connect(pin.clone(), RegConnect::Enable.into());
-                self.rd.connect(pin.clone(), RegConnect::Enable.into());
-                self.rs2.connect(pin.clone(), RegConnect::Enable.into());
-                self.opco.connect(pin.clone(), RegConnect::Enable.into());
-                self.load_signal.connect(pin, RegConnect::Enable.into());
+            Connect::RegWrite => self.reg_write.connect(pin, RegConnect::In),
+            Connect::WbSel => self.wb_sel.connect(pin, RegConnect::In),
+            Connect::MemWrite => self.mem_write.connect(pin, RegConnect::In),
+            Connect::Jal_ => self.jal_.connect(pin, RegConnect::In),
+            Connect::BranchEn => self.branch_sel.connect(pin, RegConnect::In),
+            Connect::PcSel => self.pc_sel.connect(pin, RegConnect::In),
+            Connect::ImmSel => self.imm_sel.connect(pin, RegConnect::In),
+            Connect::AluCtrl => self.alu_ctrl.connect(pin, RegConnect::In),
+            Connect::BranchType => self.branch_type.connect(pin, RegConnect::In),
+            Connect::Npc => self.npc.connect(pin, RegConnect::In),
+            Connect::Pc => self.pc.connect(pin, RegConnect::In),
+            Connect::Rs1Data => self.rs1_data.connect(pin, RegConnect::In),
+            Connect::Rs2Data => self.rs2_data.connect(pin, RegConnect::In),
+            Connect::Imm => self.imm.connect(pin, RegConnect::In),
+            Connect::Rs1 => self.rs1.connect(pin, RegConnect::In),
+            Connect::Rd => self.rd.connect(pin, RegConnect::In),
+            Connect::Rs2 => self.rs2.connect(pin, RegConnect::In),
+            Connect::Opcode => self.opco.connect(pin, RegConnect::In),
+            Connect::Enable => {
+                self.reg_write.connect(pin.clone(), RegConnect::Enable);
+                self.wb_sel.connect(pin.clone(), RegConnect::Enable);
+                self.mem_write.connect(pin.clone(), RegConnect::Enable);
+                self.jal_.connect(pin.clone(), RegConnect::Enable);
+                self.branch_sel.connect(pin.clone(), RegConnect::Enable);
+                self.pc_sel.connect(pin.clone(), RegConnect::Enable);
+                self.imm_sel.connect(pin.clone(), RegConnect::Enable);
+                self.alu_ctrl.connect(pin.clone(), RegConnect::Enable);
+                self.branch_type.connect(pin.clone(), RegConnect::Enable);
+                self.npc.connect(pin.clone(), RegConnect::Enable);
+                self.pc.connect(pin.clone(), RegConnect::Enable);
+                self.rs1_data.connect(pin.clone(), RegConnect::Enable);
+                self.rs2_data.connect(pin.clone(), RegConnect::Enable);
+                self.imm.connect(pin.clone(), RegConnect::Enable);
+                self.rs1.connect(pin.clone(), RegConnect::Enable);
+                self.rd.connect(pin.clone(), RegConnect::Enable);
+                self.rs2.connect(pin.clone(), RegConnect::Enable);
+                self.opco.connect(pin.clone(), RegConnect::Enable);
+                self.load_signal.connect(pin, RegConnect::Enable);
             }
-            20 => {
-                self.reg_write
-                    .connect(pin.clone(), RegConnect::Clear.into());
-                self.wb_sel.connect(pin.clone(), RegConnect::Clear.into());
-                self.mem_write
-                    .connect(pin.clone(), RegConnect::Clear.into());
-                self.jal_.connect(pin.clone(), RegConnect::Clear.into());
-                self.branch_sel
-                    .connect(pin.clone(), RegConnect::Clear.into());
-                self.pc_sel.connect(pin.clone(), RegConnect::Clear.into());
-                self.imm_sel.connect(pin.clone(), RegConnect::Clear.into());
-                self.alu_ctrl.connect(pin.clone(), RegConnect::Clear.into());
-                self.branch_type
-                    .connect(pin.clone(), RegConnect::Clear.into());
-                self.npc.connect(pin.clone(), RegConnect::Clear.into());
-                self.pc.connect(pin.clone(), RegConnect::Clear.into());
-                self.rs1_data.connect(pin.clone(), RegConnect::Clear.into());
-                self.rs2_data.connect(pin.clone(), RegConnect::Clear.into());
-                self.imm.connect(pin.clone(), RegConnect::Clear.into());
-                self.rs1.connect(pin.clone(), RegConnect::Clear.into());
-                self.rd.connect(pin.clone(), RegConnect::Clear.into());
-                self.rs2.connect(pin.clone(), RegConnect::Clear.into());
-                self.opco.connect(pin.clone(), RegConnect::Clear.into());
-                self.load_signal.connect(pin, RegConnect::Clear.into());
+            Connect::Clear => {
+                self.reg_write.connect(pin.clone(), RegConnect::Clear);
+                self.wb_sel.connect(pin.clone(), RegConnect::Clear);
+                self.mem_write.connect(pin.clone(), RegConnect::Clear);
+                self.jal_.connect(pin.clone(), RegConnect::Clear);
+                self.branch_sel.connect(pin.clone(), RegConnect::Clear);
+                self.pc_sel.connect(pin.clone(), RegConnect::Clear);
+                self.imm_sel.connect(pin.clone(), RegConnect::Clear);
+                self.alu_ctrl.connect(pin.clone(), RegConnect::Clear);
+                self.branch_type.connect(pin.clone(), RegConnect::Clear);
+                self.npc.connect(pin.clone(), RegConnect::Clear);
+                self.pc.connect(pin.clone(), RegConnect::Clear);
+                self.rs1_data.connect(pin.clone(), RegConnect::Clear);
+                self.rs2_data.connect(pin.clone(), RegConnect::Clear);
+                self.imm.connect(pin.clone(), RegConnect::Clear);
+                self.rs1.connect(pin.clone(), RegConnect::Clear);
+                self.rd.connect(pin.clone(), RegConnect::Clear);
+                self.rs2.connect(pin.clone(), RegConnect::Clear);
+                self.opco.connect(pin.clone(), RegConnect::Clear);
+                self.load_signal.connect(pin, RegConnect::Clear);
             }
-            21 => self.load_signal.connect(pin, RegConnect::In.into()),
+            Connect::LoadSignal => self.load_signal.connect(pin, RegConnect::In),
             _ => panic!("Invalid id"),
         }
     }

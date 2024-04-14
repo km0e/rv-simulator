@@ -6,34 +6,12 @@ pub enum Alloc {
     Pc,
     Instruction,
 }
-impl From<Alloc> for usize {
-    fn from(id: Alloc) -> Self {
-        match id {
-            Alloc::Npc => 0,
-            Alloc::Pc => 1,
-            Alloc::Instruction => 2,
-        }
-    }
-}
-
 pub enum Connect {
     Npc = 0,
     Pc = 1,
     Instruction = 2,
     Enable = 3,
     Clear = 4,
-}
-
-impl From<Connect> for usize {
-    fn from(id: Connect) -> Self {
-        match id {
-            Connect::Npc => 0,
-            Connect::Pc => 1,
-            Connect::Instruction => 2,
-            Connect::Enable => 3,
-            Connect::Clear => 4,
-        }
-    }
 }
 
 #[derive(Default)]
@@ -63,25 +41,27 @@ impl ControlBuilder for IfIdBuilder {
     }
 }
 impl PortBuilder for IfIdBuilder {
-    fn alloc(&mut self, id: usize) -> PortRef {
+    type Alloc = Alloc;
+    type Connect = Connect;
+    fn alloc(&mut self, id: Alloc) -> PortRef {
         match id {
-            0 => self.npc.alloc(RegAlloc::Out.into()),
-            1 => self.pc.alloc(RegAlloc::Out.into()),
-            2 => self.instruction.alloc(RegAlloc::Out.into()),
+            Alloc::Npc => self.npc.alloc(RegAlloc::Out.into()),
+            Alloc::Pc => self.pc.alloc(RegAlloc::Out.into()),
+            Alloc::Instruction => self.instruction.alloc(RegAlloc::Out.into()),
             _ => panic!("Invalid id"),
         }
     }
-    fn connect(&mut self, pin: PortRef, id: usize) {
+    fn connect(&mut self, pin: PortRef, id: Connect) {
         match id {
-            0 => self.npc.connect(pin, RegConnect::In.into()),
-            1 => self.pc.connect(pin, RegConnect::In.into()),
-            2 => self.instruction.connect(pin, RegConnect::In.into()),
-            3 => {
+            Connect::Npc => self.npc.connect(pin, RegConnect::In.into()),
+            Connect::Pc => self.pc.connect(pin, RegConnect::In.into()),
+            Connect::Instruction => self.instruction.connect(pin, RegConnect::In.into()),
+            Connect::Enable => {
                 self.npc.connect(pin.clone(), RegConnect::Enable.into());
                 self.pc.connect(pin.clone(), RegConnect::Enable.into());
                 self.instruction.connect(pin, RegConnect::Enable.into());
             }
-            4 => {
+            Connect::Clear => {
                 self.npc.connect(pin.clone(), RegConnect::Clear.into());
                 self.pc.connect(pin.clone(), RegConnect::Clear.into());
                 self.instruction.connect(pin, RegConnect::Clear.into());

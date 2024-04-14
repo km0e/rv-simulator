@@ -49,28 +49,11 @@ impl Page for DirPage {
 pub enum Alloc {
     Out = 0,
 }
-impl From<Alloc> for usize {
-    fn from(alloc: Alloc) -> usize {
-        match alloc {
-            Alloc::Out => 0,
-        }
-    }
-}
 pub enum Connect {
     Address = 0,
     Input = 1,
     Write = 2,
     Read = 3,
-}
-impl From<Connect> for usize {
-    fn from(alloc: Connect) -> usize {
-        match alloc {
-            Connect::Address => 0,
-            Connect::Input => 1,
-            Connect::Write => 2,
-            Connect::Read => 3,
-        }
-    }
 }
 #[derive(Default)]
 pub struct MemBuilder {
@@ -92,20 +75,22 @@ impl ControlBuilder for MemBuilder {
     }
 }
 impl PortBuilder for MemBuilder {
+    type Alloc = Alloc;
+    type Connect = Connect;
     // Connect the address and input pin
-    fn connect(&mut self, pin: PortRef, id: usize) {
+    fn connect(&mut self, pin: PortRef, id: Self::Connect) {
         match id {
-            0 => self.inner.borrow_mut().address = Some(pin),
-            1 => self.inner.borrow_mut().input = Some(pin),
-            2 => self.inner.borrow_mut().write = Some(pin),
-            3 => self.inner.borrow_mut().read = Some(pin),
+            Self::Connect::Address => self.inner.borrow_mut().address = Some(pin),
+            Self::Connect::Input => self.inner.borrow_mut().input = Some(pin),
+            Self::Connect::Write => self.inner.borrow_mut().write = Some(pin),
+            Self::Connect::Read => self.inner.borrow_mut().read = Some(pin),
             _ => panic!("Invalid id"),
         }
     }
     // alloc the id for the memory
     // 0 for address
     // 1 for input
-    fn alloc(&mut self, _: usize) -> PortRef {
+    fn alloc(&mut self, _: Self::Alloc) -> PortRef {
         self.inner.clone().into_shared().into()
     }
 }
@@ -223,17 +208,20 @@ mod tests {
         constant.push(1);
         constant.push(1);
         let mut ab = AddBuilder::default();
-        let add = ab.alloc(Alloc::Out.into());
-        ab.connect(constant.alloc(0), 0);
+        let add = ab.alloc(AddAlloc::Out);
+        ab.connect(constant.alloc(ConstsAlloc::Out(0)), AddConnect::In(0));
         let mut rb = RegBuilder::new(0);
-        rb.connect(ab.alloc(0), 0);
-        rb.connect(constant.alloc(1), RegConnect::Enable.into());
-        ab.connect(rb.alloc(0), 0);
-        tb.connect(rb.alloc(0), 0);
-        tb.connect(constant.alloc(1), 1);
-        tb.connect(rb.alloc(0), 2);
-        tb.connect(constant.alloc(0), Connect::Read.into());
-        let t = tb.alloc(0);
+        rb.connect(ab.alloc(AddAlloc::Out), RegConnect::In);
+        rb.connect(
+            constant.alloc(ConstsAlloc::Out(1)),
+            RegConnect::Enable.into(),
+        );
+        ab.connect(rb.alloc(RegAlloc::Out), AddConnect::In(0));
+        tb.connect(rb.alloc(RegAlloc::Out), MemConnect::Address);
+        tb.connect(constant.alloc(ConstsAlloc::Out(1)), MemConnect::Input);
+        tb.connect(rb.alloc(RegAlloc::Out), MemConnect::Write);
+        tb.connect(constant.alloc(ConstsAlloc::Out(0)), MemConnect::Read.into());
+        let t = tb.alloc(MemAlloc::Out);
         let tc = tb.build();
         let rc = rb.build();
         tc.rasing_edge();
@@ -257,10 +245,10 @@ mod tests {
         constant.push(1);
         constant.push(2);
         constant.push(3);
-        tb.connect(constant.alloc(0), 0);
-        tb.connect(constant.alloc(1), 1);
-        tb.connect(constant.alloc(2), 2);
-        tb.connect(constant.alloc(2), 3);
-        tb.connect(constant.alloc(2), 4);
+        tb.connect(constant.alloc(ConstsAlloc::Out(0)), MemConnect::Address);
+        tb.connect(constant.alloc(ConstsAlloc::Out(1)), MemConnect::Input);
+        tb.connect(constant.alloc(ConstsAlloc::Out(2)), MemConnect::Write);
+        tb.connect(constant.alloc(ConstsAlloc::Out(2)), MemConnect::Read);
+        tb.connect(constant.alloc(ConstsAlloc::Out(2)), MemConnect::Read);
     }
 }

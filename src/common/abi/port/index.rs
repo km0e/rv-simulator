@@ -57,6 +57,8 @@ impl Clone for IndexPortRef {
 }
 
 pub trait IndexPortBuilder {
-    fn index_connect(&mut self, pin: IndexPortRef, id: usize);
-    fn index_alloc(&mut self, id: usize) -> IndexPortRef;
+    type IndexConnect;
+    type IndexAlloc;
+    fn index_connect(&mut self, pin: IndexPortRef, id: Self::IndexConnect);
+    fn index_alloc(&mut self, id: Self::IndexAlloc) -> IndexPortRef;
 }

@@ -48,25 +48,25 @@ impl IfStageBuilder {
         consts.push(1);
         // set up pc increment mux
         let mut if_pc_inc = MuxBuilder::default();
-        if_pc_inc.connect(consts.alloc(0), 1);
-        if_pc_inc.connect(consts.alloc(1), 2);
-        if_pc_inc.connect(consts.alloc(2), 0);
+        if_pc_inc.connect(consts.alloc(ConstsAlloc::Out(0)), MuxConnect::In(0));
+        if_pc_inc.connect(consts.alloc(ConstsAlloc::Out(1)), MuxConnect::In(1));
+        if_pc_inc.connect(consts.alloc(ConstsAlloc::Out(2)), MuxConnect::Select);
         // set up npc mux
         let mut if_npc_mux = MuxBuilder::default();
         // set up pc
         let mut if_pc = RegBuilder::new(entry);
-        if_pc.connect(if_npc_mux.alloc(0), 0);
+        if_pc.connect(if_npc_mux.alloc(MuxAlloc::Out), RegConnect::In.into());
         // set up add
         let mut if_add = AddBuilder::new();
-        if_add.connect(if_pc_inc.alloc(0), 0);
-        if_add.connect(if_pc.alloc(0), 1);
+        if_add.connect(if_pc_inc.alloc(MuxAlloc::Out), AddConnect::In(0));
+        if_add.connect(if_pc.alloc(RegAlloc::Out), AddConnect::In(1));
         // connect npc and add
-        if_npc_mux.connect(if_add.alloc(0), MuxConnect::In(0).into());
+        if_npc_mux.connect(if_add.alloc(AddAlloc::Out), MuxConnect::In(0).into());
         // set up instruction memory
         let mut if_imem = MemBuilder::new(instruction_memory);
-        if_imem.connect(if_pc.alloc(0), MemConnect::Address.into());
-        if_imem.connect(consts.alloc(2), MemConnect::Write.into());
-        if_imem.connect(consts.alloc(3), MemConnect::Read.into());
+        if_imem.connect(if_pc.alloc(RegAlloc::Out), MemConnect::Address.into());
+        if_imem.connect(consts.alloc(ConstsAlloc::Out(2)), MemConnect::Write.into());
+        if_imem.connect(consts.alloc(ConstsAlloc::Out(3)), MemConnect::Read.into());
         //cache
         //asm
         let mut if_asm = AsmMemBuilder::new(asm_mem);
@@ -103,19 +103,21 @@ impl ControlBuilder for IfStageBuilder {
     }
 }
 impl PortBuilder for IfStageBuilder {
-    fn alloc(&mut self, id: usize) -> PortRef {
+    type Alloc = Alloc;
+    type Connect = Connect;
+    fn alloc(&mut self, id: Alloc) -> PortRef {
         match id {
-            0 => self.pc.alloc(0),
-            1 => self.add.alloc(0),
-            2 => self.imem.alloc(0),
+            Alloc::Pc => self.pc.alloc(RegAlloc::Out.into()),
+            Alloc::Npc => self.add.alloc(AddAlloc::Out.into()),
+            Alloc::Imem => self.imem.alloc(MemAlloc::Out.into()),
             _ => panic!("Invalid id"),
         }
     }
-    fn connect(&mut self, pin: PortRef, id: usize) {
+    fn connect(&mut self, pin: PortRef, id: Connect) {
         match id {
-            0 => self.pc.connect(pin, RegConnect::Enable.into()),
-            1 => self.npc_mux.connect(pin, MuxConnect::Select.into()),
-            2 => self.npc_mux.connect(pin, MuxConnect::In(1).into()),
+            Connect::PcEnable => self.pc.connect(pin, RegConnect::Enable.into()),
+            Connect::NpcSel => self.npc_mux.connect(pin, MuxConnect::Select.into()),
+            Connect::Npc => self.npc_mux.connect(pin, MuxConnect::In(1).into()),
             _ => panic!("Invalid id"),
         }
     }
@@ -157,12 +159,14 @@ mod tests {
         consts = ConstsBuilder::default();
         consts.push(0);
         consts.push(1);
-        ifb.npc_mux.connect(consts.alloc(0), 0);
-        ifb.imem.connect(consts.alloc(0), 2);
-        ifb.connect(consts.alloc(1), Connect::PcEnable.into());
-        let pc = ifb.pc.alloc(0);
-        let npc = ifb.add.alloc(0);
-        let imem = ifb.imem.alloc(0);
+        ifb.npc_mux
+            .connect(consts.alloc(ConstsAlloc::Out(0)), MuxConnect::Select);
+        ifb.imem
+            .connect(consts.alloc(ConstsAlloc::Out(0)), MemConnect::Write.into());
+        ifb.connect(consts.alloc(ConstsAlloc::Out(1)), Connect::PcEnable.into());
+        let pc = ifb.pc.alloc(RegAlloc::Out);
+        let npc = ifb.add.alloc(AddAlloc::Out);
+        let imem = ifb.imem.alloc(MemAlloc::Out);
         let if_ = ifb.build();
         assert_eq!(pc.read(), 0);
         assert_eq!(npc.read(), 4);

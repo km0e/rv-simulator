@@ -29,17 +29,19 @@ pub struct AluBuilder {
     inner: PortShared<Alu>,
 }
 impl PortBuilder for AluBuilder {
-    fn alloc(&mut self, id: usize) -> PortRef {
+    type Alloc = Alloc;
+    type Connect = Connect;
+    fn alloc(&mut self, id: Self::Alloc) -> PortRef {
         match id {
-            0 => PortRef::from(self.inner.clone()),
+            Self::Alloc::Res => PortRef::from(self.inner.clone()),
             _ => panic!("Invalid id"),
         }
     }
-    fn connect(&mut self, pin: PortRef, id: usize) {
+    fn connect(&mut self, pin: PortRef, id: Self::Connect) {
         match id {
-            0 => self.inner.borrow_mut().alu_ctl = Some(pin.clone()),
-            1 => self.inner.borrow_mut().input1 = Some(pin.clone()),
-            2 => self.inner.borrow_mut().input2 = Some(pin.clone()),
+            Self::Connect::Ctrl => self.inner.borrow_mut().alu_ctl = Some(pin.clone()),
+            Self::Connect::Op1 => self.inner.borrow_mut().input1 = Some(pin.clone()),
+            Self::Connect::Op2 => self.inner.borrow_mut().input2 = Some(pin.clone()),
             _ => panic!("Invalid id"),
         }
     }
@@ -96,9 +98,9 @@ mod tests {
         consts.push(1);
         consts.push(2);
         consts.push(0b1);
-        alub.connect(consts.alloc(0), 1);
-        alub.connect(consts.alloc(1), 2);
-        alub.connect(consts.alloc(2), 0);
-        assert_eq!(alub.alloc(0).read(), 3);
+        alub.connect(consts.alloc(ConstsAlloc::Out(0)), Connect::Op1);
+        alub.connect(consts.alloc(ConstsAlloc::Out(1)), Connect::Op2);
+        alub.connect(consts.alloc(ConstsAlloc::Out(2)), Connect::Ctrl);
+        assert_eq!(alub.alloc(Alloc::Res).read(), 3);
     }
 }

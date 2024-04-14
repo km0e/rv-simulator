@@ -97,12 +97,14 @@ impl AsmBuilder for AsmMemBuilder {
     }
 }
 impl PortBuilder for AsmMemBuilder {
-    fn alloc(&mut self, _id: usize) -> PortRef {
+    type Alloc = Alloc;
+    type Connect = Connect;
+    fn alloc(&mut self, _id: Self::Alloc) -> PortRef {
         panic!("AsmMemBuilder: don't need to alloc")
     }
-    fn connect(&mut self, pin: PortRef, id: usize) {
+    fn connect(&mut self, pin: PortRef, id: Self::Connect) {
         match id {
-            0 => self.inner.0.borrow_mut().address = Some(pin),
+            Self::Connect::Address => self.inner.0.borrow_mut().address = Some(pin),
             _ => panic!("AsmMemBuilder: invalid connect id"),
         }
     }

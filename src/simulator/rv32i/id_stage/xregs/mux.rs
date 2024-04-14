@@ -3,39 +3,19 @@ use crate::common::abi::*;
 pub enum Alloc {
     Out = 0,
 }
-impl From<Alloc> for usize {
-    fn from(alloc: Alloc) -> usize {
-        match alloc {
-            Alloc::Out => 0,
-        }
-    }
-}
+
 pub enum Connect {
     Rs = 0,
     Rd = 1,
     RdData = 2,
     Write = 3,
 }
-impl From<Connect> for usize {
-    fn from(alloc: Connect) -> usize {
-        match alloc {
-            Connect::Rs => 0,
-            Connect::Rd => 1,
-            Connect::RdData => 2,
-            Connect::Write => 3,
-        }
-    }
-}
+
 pub enum IndexConnect {
-    X = 0,
+    X,
 }
-impl From<IndexConnect> for usize {
-    fn from(alloc: IndexConnect) -> usize {
-        match alloc {
-            IndexConnect::X => 0,
-        }
-    }
-}
+pub enum IndexAlloc {}
+
 #[derive(Default)]
 pub struct RegMuxBuilder {
     rs: Option<PortRef>,
@@ -45,16 +25,18 @@ pub struct RegMuxBuilder {
     x: Option<IndexPortRef>,
 }
 impl PortBuilder for RegMuxBuilder {
-    fn connect(&mut self, pin: PortRef, id: usize) {
+    type Alloc = Alloc;
+    type Connect = Connect;
+    fn connect(&mut self, pin: PortRef, id: Connect) {
         match id {
-            0 => self.rs = Some(pin),
-            1 => self.rd = Some(pin),
-            2 => self.rd_data = Some(pin),
-            3 => self.write = Some(pin),
+            Connect::Rs => self.rs = Some(pin),
+            Connect::Rd => self.rd = Some(pin),
+            Connect::RdData => self.rd_data = Some(pin),
+            Connect::Write => self.write = Some(pin),
             _ => panic!("Invalid id"),
         }
     }
-    fn alloc(&mut self, _: usize) -> PortRef {
+    fn alloc(&mut self, _: Alloc) -> PortRef {
         PortRef::from(PortShared::new(RegMux {
             rs: self.rs.clone().unwrap(),
             rd: self.rd.clone().unwrap(),
@@ -65,13 +47,16 @@ impl PortBuilder for RegMuxBuilder {
     }
 }
 impl IndexPortBuilder for RegMuxBuilder {
-    fn index_connect(&mut self, pin: IndexPortRef, id: usize) {
+    type IndexAlloc = IndexAlloc;
+    type IndexConnect = IndexConnect;
+
+    fn index_connect(&mut self, pin: IndexPortRef, id: IndexConnect) {
         match id {
-            0 => self.x = Some(pin),
+            IndexConnect::X => self.x = Some(pin),
             _ => panic!("Invalid id"),
         }
     }
-    fn index_alloc(&mut self, _id: usize) -> IndexPortRef {
+    fn index_alloc(&mut self, _id: IndexAlloc) -> IndexPortRef {
         unreachable!("RegMux has no index output")
     }
 }

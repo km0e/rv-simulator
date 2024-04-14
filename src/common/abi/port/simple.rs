@@ -50,7 +50,10 @@ impl PortRef {
         self.0.borrow().read()
     }
 }
+
 pub trait PortBuilder {
-    fn connect(&mut self, pin: PortRef, id: usize);
-    fn alloc(&mut self, id: usize) -> PortRef;
+    type Connect;
+    type Alloc;
+    fn connect(&mut self, pin: PortRef, id: Self::Connect);
+    fn alloc(&mut self, id: Self::Alloc) -> PortRef;
 }

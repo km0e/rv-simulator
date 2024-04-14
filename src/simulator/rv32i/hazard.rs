@@ -49,37 +49,39 @@ impl ControlBuilder for HazardBuilder {
     }
 }
 impl PortBuilder for HazardBuilder {
-    fn alloc(&mut self, id: usize) -> PortRef {
+    type Alloc = Alloc;
+    type Connect = Connect;
+    fn alloc(&mut self, id: Alloc) -> PortRef {
         match id {
-            0 => PortRef::from(self.pc_enable.clone()),
-            1 => PortRef::from(self.if_id_enable.clone()),
-            2 => PortRef::from(self.id_ex_clear.clone()),
+            Alloc::PcEnable => PortRef::from(self.pc_enable.clone()),
+            Alloc::IfIdEnable => PortRef::from(self.if_id_enable.clone()),
+            Alloc::IdExClear => PortRef::from(self.id_ex_clear.clone()),
             _ => panic!("Invalid id"),
         }
     }
-    fn connect(&mut self, pin: PortRef, id: usize) {
+    fn connect(&mut self, pin: PortRef, id: Connect) {
         match id {
-            0 => {
+            Connect::LoadSignal => {
                 self.pc_enable.borrow_mut().load_signal = Some(pin.clone());
                 self.if_id_enable.borrow_mut().load_signal = Some(pin.clone());
                 self.id_ex_clear.borrow_mut().load_signal = Some(pin.clone());
             }
-            1 => {
+            Connect::ExRd => {
                 self.pc_enable.borrow_mut().ex_rd = Some(pin.clone());
                 self.if_id_enable.borrow_mut().ex_rd = Some(pin.clone());
                 self.id_ex_clear.borrow_mut().ex_rd = Some(pin.clone());
             }
-            2 => {
+            Connect::IdRs1 => {
                 self.pc_enable.borrow_mut().id_rs1 = Some(pin.clone());
                 self.if_id_enable.borrow_mut().id_rs1 = Some(pin.clone());
                 self.id_ex_clear.borrow_mut().id_rs1 = Some(pin.clone());
             }
-            3 => {
+            Connect::IdRs2 => {
                 self.pc_enable.borrow_mut().id_rs2 = Some(pin.clone());
                 self.if_id_enable.borrow_mut().id_rs2 = Some(pin.clone());
                 self.id_ex_clear.borrow_mut().id_rs2 = Some(pin.clone());
             }
-            4 => {
+            Connect::NpcSel => {
                 self.id_ex_clear.borrow_mut().npc_sel = Some(pin.clone());
             }
             _ => panic!("Invalid id"),
@@ -272,20 +274,23 @@ mod tests {
     }
     fn run_test(alloc: TestAlloc, connect: TestConnect) {
         let mut builder = HazardBuilder::default();
-        let pc_enable = builder.alloc(0);
-        let if_id_enable = builder.alloc(1);
-        let id_ex_clear = builder.alloc(2);
+        let pc_enable = builder.alloc(Alloc::PcEnable);
+        let if_id_enable = builder.alloc(Alloc::IfIdEnable);
+        let id_ex_clear = builder.alloc(Alloc::IdExClear);
         let mut consts = ConstsBuilder::default();
         consts.push(connect.load_signal);
         consts.push(connect.ex_rd);
         consts.push(connect.id_rs1);
         consts.push(connect.id_rs2);
         consts.push(connect.npc_sel);
-        builder.connect(consts.alloc(0), Connect::LoadSignal.into());
-        builder.connect(consts.alloc(1), Connect::ExRd.into());
-        builder.connect(consts.alloc(2), Connect::IdRs1.into());
-        builder.connect(consts.alloc(3), Connect::IdRs2.into());
-        builder.connect(consts.alloc(4), Connect::NpcSel.into());
+        builder.connect(
+            consts.alloc(ConstsAlloc::Out(0)),
+            Connect::LoadSignal.into(),
+        );
+        builder.connect(consts.alloc(ConstsAlloc::Out(1)), Connect::ExRd.into());
+        builder.connect(consts.alloc(ConstsAlloc::Out(2)), Connect::IdRs1.into());
+        builder.connect(consts.alloc(ConstsAlloc::Out(3)), Connect::IdRs2.into());
+        builder.connect(consts.alloc(ConstsAlloc::Out(4)), Connect::NpcSel.into());
         assert_eq!(pc_enable.read(), alloc.pc_enable);
         assert_eq!(if_id_enable.read(), alloc.if_id_enable);
         assert_eq!(id_ex_clear.read(), alloc.id_ex_clear);

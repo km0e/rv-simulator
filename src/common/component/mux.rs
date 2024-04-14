@@ -3,43 +3,30 @@ use crate::common::build::*;
 pub enum Alloc {
     Out = 0,
 }
-impl From<Alloc> for usize {
-    fn from(alloc: Alloc) -> usize {
-        match alloc {
-            Alloc::Out => 0,
-        }
-    }
-}
 pub enum Connect {
     Select,
     In(usize),
-}
-impl From<Connect> for usize {
-    fn from(alloc: Connect) -> usize {
-        match alloc {
-            Connect::Select => 0,
-            Connect::In(c) => c + 1,
-        }
-    }
 }
 #[derive(Default)]
 pub struct MuxBuilder {
     pub inner: PortShared<Mux>,
 }
 impl PortBuilder for MuxBuilder {
-    fn connect(&mut self, pin: PortRef, id: usize) {
+    type Alloc = Alloc;
+    type Connect = Connect;
+    fn connect(&mut self, pin: PortRef, id: Self::Connect) {
         match id {
-            0 => self.inner.borrow_mut().select = Some(pin),
-            c => {
+            Self::Connect::Select => self.inner.borrow_mut().select = Some(pin),
+            Self::Connect::In(c) => {
                 let input = &mut self.inner.borrow_mut().input;
                 if c > input.len() {
-                    input.resize(c, PortRef::from(PortShared::new(Bomb::default())));
+                    input.resize(c + 1, PortRef::from(PortShared::new(Bomb::default())));
                 }
-                input[c - 1] = pin;
+                input[c] = pin;
             }
         }
     }
-    fn alloc(&mut self, _: usize) -> PortRef {
+    fn alloc(&mut self, _: Self::Alloc) -> PortRef {
         PortRef::from(self.inner.clone())
     }
 }
@@ -66,14 +53,14 @@ mod tests {
     #[test]
     fn test_mux() {
         let mut tb = MuxBuilder::default();
-        let mut t = tb.alloc(0);
+        let mut t = tb.alloc(MuxAlloc::Out);
         let mut constant = ConstsBuilder::default();
         constant.push(1);
         constant.push(2);
         constant.push(0);
-        tb.connect(constant.alloc(2), 0);
-        tb.connect(constant.alloc(0), 1);
-        tb.connect(constant.alloc(1), 2);
+        tb.connect(constant.alloc(ConstsAlloc::Out(2)), MuxConnect::Select);
+        tb.connect(constant.alloc(ConstsAlloc::Out(0)), MuxConnect::In(0));
+        tb.connect(constant.alloc(ConstsAlloc::Out(1)), MuxConnect::In(1));
         assert_eq!(t.read(), 1);
         assert_eq!(t.read(), 1);
         assert_eq!(t.read(), 1);
