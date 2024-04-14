@@ -41,8 +41,8 @@ impl RegBuilder {
     }
 }
 impl ControlBuilder for RegBuilder {
-    fn build(self) -> Box<dyn Control> {
-        Some(self.inner.clone())
+    fn build(self) -> ControlRef {
+        self.inner.into_shared().into()
     }
 }
 impl PortBuilder for RegBuilder {
@@ -61,7 +61,7 @@ impl PortBuilder for RegBuilder {
 
 #[derive(Default)]
 pub struct Reg {
-    pub in_: Option<Shared<dyn Port>>,
+    pub in_: Option<PortRef>,
     pub enable: Option<PortRef>,
     pub clear: Option<PortRef>,
     pub data: u32,
@@ -121,11 +121,11 @@ mod tests {
         let t = tb.alloc(0);
         tb.connect(constant.alloc(1), Connect::Enable.into());
         tb.connect(constant.alloc(2), Connect::Clear.into());
-        let mut tc = tb.build().unwrap();
+        let tc = tb.build();
         assert_eq!(t.read(), 1);
-        tc.borrow_mut().rasing_edge();
+        tc.rasing_edge();
         assert_eq!(t.read(), 1);
-        tc.borrow_mut().falling_edge();
+        tc.falling_edge();
         assert_eq!(t.read(), 2);
     }
 }

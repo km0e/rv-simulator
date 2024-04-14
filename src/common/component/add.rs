@@ -67,9 +67,9 @@ mod tests {
         let mut constant = ConstsBuilder::default();
         constant.push(1);
         constant.push(2);
-        let t = tb.alloc(0);
-        tb.connect(constant.alloc(0), 0);
-        tb.connect(constant.alloc(1), 1);
+        let t = tb.alloc(Alloc::Out.into());
+        tb.connect(constant.alloc(0), Connect::In(0).into());
+        tb.connect(constant.alloc(1), Connect::In(1).into());
         assert_eq!(t.read(), 3);
         assert_eq!(t.read(), 3);
     }

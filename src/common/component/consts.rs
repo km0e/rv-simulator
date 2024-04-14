@@ -6,8 +6,8 @@ pub struct ConstsBuilder {
     data: Vec<PortShared<Lat>>,
 }
 impl PortBuilder for ConstsBuilder {
-    fn connect(&mut self, pin: PortRef, id: usize) {
-        unimplemented!()
+    fn connect(&mut self, _pin: PortRef, _id: usize) {
+        unreachable!("ConstsBuilder does not have any input");
     }
     fn alloc(&mut self, id: usize) -> PortRef {
         assert!(id < self.data.len());

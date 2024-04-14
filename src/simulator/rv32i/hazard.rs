@@ -40,14 +40,12 @@ pub struct HazardBuilder {
 }
 impl ControlBuilder for HazardBuilder {
     fn build(self) -> ControlRef {
-        Some(
-            ControlShared::new(Hazard {
-                pc_enable: ControlRef::from(self.pc_enable),
-                if_id_enable: ControlRef::from(self.if_id_enable),
-                id_ex_clear: ControlRef::from(self.id_ex_clear),
-            })
-            .into(),
-        )
+        Hazard {
+            pc_enable: self.pc_enable.into_shared().into(),
+            if_id_enable: self.if_id_enable.into_shared().into(),
+            id_ex_clear: self.id_ex_clear.into_shared().into(),
+        }
+        .into()
     }
 }
 impl PortBuilder for HazardBuilder {

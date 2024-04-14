@@ -113,6 +113,11 @@ impl ExStageBuilder {
         }
     }
 }
+impl Default for ExStageBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl PortBuilder for ExStageBuilder {
     fn alloc(&mut self, id: usize) -> PortRef {
         match id {

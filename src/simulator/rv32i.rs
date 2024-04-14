@@ -1,12 +1,11 @@
 use crate::common::abi::*;
 use crate::common::build::*;
-mod sep_reg;
-use super::utils;
 mod ex_stage;
 mod hazard;
 mod id_stage;
 mod if_stage;
 mod mem_stage;
+mod sep_reg;
 mod wb_stage;
 use ex_stage::Alloc as ExAlloc;
 use ex_stage::Connect as ExConnect;
@@ -354,24 +353,17 @@ impl Rv32iBuilder {
 
 impl ControlBuilder for Rv32iBuilder {
     fn build(self) -> ControlRef {
-        Some(ControlRef::from(ControlShared::new(Rv32i {
-            if_stage: self.if_stage.build().unwrap(),
+        Rv32i {
+            if_stage: self.if_stage.build(),
             id_stage: self.id_stage.build(),
-            mem_stage: self.mem_stage.build().unwrap(),
-            if_id: self.if_id.build().unwrap(),
-            id_ex: self.id_ex.build().unwrap(),
-            ex_mem: self.ex_mem.build().unwrap(),
-            mem_wb: self.mem_wb.build().unwrap(),
-            hazard: self.hazard.build().unwrap(),
-        })))
-    }
-}
-impl PortBuilder for Rv32iBuilder {
-    fn alloc(&mut self, id: usize) -> PortRef {
-        unimplemented!()
-    }
-    fn connect(&mut self, pin: PortRef, id: usize) {
-        unimplemented!()
+            mem_stage: self.mem_stage.build(),
+            if_id: self.if_id.build(),
+            id_ex: self.id_ex.build(),
+            ex_mem: self.ex_mem.build(),
+            mem_wb: self.mem_wb.build(),
+            hazard: self.hazard.build(),
+        }
+        .into()
     }
 }
 

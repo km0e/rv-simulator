@@ -71,10 +71,8 @@ impl IndexPortBuilder for RegMuxBuilder {
             _ => panic!("Invalid id"),
         }
     }
-    fn index_alloc(&mut self, id: usize) -> IndexPortRef {
-        match id {
-            _ => unreachable!("RegMux has no index output"),
-        }
+    fn index_alloc(&mut self, _id: usize) -> IndexPortRef {
+        unreachable!("RegMux has no index output")
     }
 }
 

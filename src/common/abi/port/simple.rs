@@ -1,10 +1,13 @@
-// use crate::abi::utils::ToShared;
-use crate::common::abi::control::{Control, ControlShared};
-use crate::common::abi::utils::Shared;
+use std::cell::{Ref, RefCell, RefMut};
+use std::rc::Rc;
+
+use super::super::utils::Shared;
+
 pub trait Port {
     // get data from the component by id
     fn read(&self) -> u32;
 }
+
 #[derive(Default)]
 pub struct PortShared<T: 'static + Port>(Shared<T>);
 impl<T: 'static + Port> Clone for PortShared<T> {
@@ -14,29 +17,27 @@ impl<T: 'static + Port> Clone for PortShared<T> {
 }
 impl<T: Port> PortShared<T> {
     pub fn new(component: T) -> Self {
-        Self(Shared::from(component))
+        Self(component.into())
     }
-    pub fn borrow(&self) -> std::cell::Ref<T> {
+    pub fn borrow(&self) -> Ref<T> {
         self.0.borrow()
     }
-    pub fn borrow_mut(&self) -> std::cell::RefMut<T> {
+    pub fn borrow_mut(&self) -> RefMut<T> {
         self.0.borrow_mut()
     }
-}
-// impl<T: 'static + Port> ToShared<T> for PortShared<T> {
-//     fn to_shared(self) -> Shared<T> {
-//         self.0
-//     }
-// }
-pub struct PortRef(Shared<dyn Port>);
-impl<T: 'static + Port> From<PortShared<T>> for PortRef {
-    fn from(shared: PortShared<T>) -> Self {
-        Self(shared.to_shared())
+    pub fn into_shared(self) -> Shared<T> {
+        self.0
     }
 }
-impl<T: 'static + ?Sized + Port + Control> From<ControlShared<T>> for PortRef {
-    fn from(shared: ControlShared<T>) -> Self {
-        Self(shared.to_shared().into())
+impl<T: 'static + Port> From<Shared<T>> for PortRef {
+    fn from(shared: Shared<T>) -> Self {
+        Self(shared.into_inner())
+    }
+}
+pub struct PortRef(Rc<RefCell<dyn Port>>);
+impl<T: 'static + Port> From<PortShared<T>> for PortRef {
+    fn from(shared: PortShared<T>) -> Self {
+        shared.into_shared().into()
     }
 }
 impl Clone for PortRef {
@@ -52,21 +53,4 @@ impl PortRef {
 pub trait PortBuilder {
     fn connect(&mut self, pin: PortRef, id: usize);
     fn alloc(&mut self, id: usize) -> PortRef;
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    struct MockPort;
-    impl Control for MockPort {
-        fn debug(&self) -> String {
-            unimplemented!()
-        }
-        fn rasing_edge(&mut self) {}
-    }
-    impl Port for MockPort {
-        fn read(&self) -> u32 {
-            unimplemented!()
-        }
-    }
 }

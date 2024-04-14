@@ -53,12 +53,13 @@ impl AsmBuilder for IfIdBuilder {
 }
 impl ControlBuilder for IfIdBuilder {
     fn build(self) -> ControlRef {
-        Some(ControlRef::from(ControlShared::new(IfId {
-            npc: self.npc.build().unwrap(),
-            pc: self.pc.build().unwrap(),
-            instruction: self.instruction.build().unwrap(),
+        IfId {
+            npc: self.npc.build(),
+            pc: self.pc.build(),
+            instruction: self.instruction.build(),
             asm: self.asm.build(),
-        })))
+        }
+        .into()
     }
 }
 impl PortBuilder for IfIdBuilder {

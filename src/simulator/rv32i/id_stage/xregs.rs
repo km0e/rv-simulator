@@ -102,7 +102,7 @@ impl PortBuilder for XregsBuilder {
 }
 impl ControlBuilder for XregsBuilder {
     fn build(self) -> ControlRef {
-        self.x.build().into()
+        self.x.build()
     }
 }
 
@@ -123,7 +123,6 @@ mod tests {
         rsb.connect(consts.alloc(0), Connect::Rd.into());
         rsb.connect(consts.alloc(1), Connect::Write.into());
         rsb.connect(consts.alloc(2), Connect::RdData.into());
-        consts.build();
         let r1 = rsb.alloc(Alloc::R1Data.into());
         let r2 = rsb.alloc(Alloc::R2Data.into());
         let rs = rsb.build();

@@ -134,28 +134,29 @@ impl AsmBuilder for IdExBuilder {
 }
 impl ControlBuilder for IdExBuilder {
     fn build(self) -> ControlRef {
-        Some(ControlRef::from(ControlShared::new(IdEx {
-            reg_write: self.reg_write.build().unwrap(),
-            wb_sel: self.wb_sel.build().unwrap(),
-            mem_write: self.mem_write.build().unwrap(),
-            jal_: self.jal_.build().unwrap(),
-            branch_sel: self.branch_sel.build().unwrap(),
-            pc_sel: self.pc_sel.build().unwrap(),
-            imm_sel: self.imm_sel.build().unwrap(),
-            alu_ctrl: self.alu_ctrl.build().unwrap(),
-            branch_type: self.branch_type.build().unwrap(),
-            npc: self.npc.build().unwrap(),
-            pc: self.pc.build().unwrap(),
-            rs1_data: self.rs1_data.build().unwrap(),
-            rs2_data: self.rs2_data.build().unwrap(),
-            imm: self.imm.build().unwrap(),
-            rs1: self.rs1.build().unwrap(),
-            rd: self.rd.build().unwrap(),
-            rs2: self.rs2.build().unwrap(),
-            opco: self.opco.build().unwrap(),
-            load_signal: self.load_signal.build().unwrap(),
+        IdEx {
+            reg_write: self.reg_write.build(),
+            wb_sel: self.wb_sel.build(),
+            mem_write: self.mem_write.build(),
+            jal_: self.jal_.build(),
+            branch_sel: self.branch_sel.build(),
+            pc_sel: self.pc_sel.build(),
+            imm_sel: self.imm_sel.build(),
+            alu_ctrl: self.alu_ctrl.build(),
+            branch_type: self.branch_type.build(),
+            npc: self.npc.build(),
+            pc: self.pc.build(),
+            rs1_data: self.rs1_data.build(),
+            rs2_data: self.rs2_data.build(),
+            imm: self.imm.build(),
+            rs1: self.rs1.build(),
+            rd: self.rd.build(),
+            rs2: self.rs2.build(),
+            opco: self.opco.build(),
+            load_signal: self.load_signal.build(),
             asm: self.asm.build(),
-        })))
+        }
+        .into()
     }
 }
 impl PortBuilder for IdExBuilder {

@@ -1,24 +1,23 @@
 use crate::common::abi::*;
-use crate::common::build::*;
 
-use super::{AsmBuilder, AsmPort, AsmPortRef, AsmPortShared};
-pub enum AsmRegAlloc {
+use super::{AsmBuilder, AsmPort, AsmPortRef};
+pub enum Alloc {
     Out,
 }
-impl From<AsmRegAlloc> for usize {
-    fn from(alloc: AsmRegAlloc) -> usize {
+impl From<Alloc> for usize {
+    fn from(alloc: Alloc) -> usize {
         match alloc {
-            AsmRegAlloc::Out => 0,
+            Alloc::Out => 0,
         }
     }
 }
-pub enum AsmRegConnect {
+pub enum Connect {
     In,
 }
-impl From<AsmRegConnect> for usize {
-    fn from(alloc: AsmRegConnect) -> usize {
+impl From<Connect> for usize {
+    fn from(alloc: Connect) -> usize {
         match alloc {
-            AsmRegConnect::In => 0,
+            Connect::In => 0,
         }
     }
 }
@@ -28,17 +27,13 @@ pub struct AsmRegBuilder {
     pub inner: Option<ControlShared<AsmReg>>,
 }
 impl ControlBuilder for AsmRegBuilder {
-    fn build(self) -> Box<dyn Control> {
+    fn build(self) -> ControlRef {
         self.inner.unwrap().into()
     }
 }
 impl AsmBuilder for AsmRegBuilder {
     fn asm_alloc(&self, id: usize) -> AsmPortRef {
-        assert_eq!(
-            id,
-            AsmRegAlloc::Out.into(),
-            "AsmRegBuilder: invalid asm alloc id"
-        );
+        assert_eq!(id, Alloc::Out.into(), "AsmRegBuilder: invalid asm alloc id");
         if let Some(inner) = &self.inner {
             inner.clone().into()
         } else {
@@ -48,7 +43,7 @@ impl AsmBuilder for AsmRegBuilder {
     fn asm_connect(&mut self, pin: AsmPortRef, id: usize) {
         assert_eq!(
             id,
-            AsmRegConnect::In.into(),
+            Connect::In.into(),
             "AsmRegBuilder: invalid asm connect id"
         );
         self.inner = Some(ControlShared::new(AsmReg::new(pin)));

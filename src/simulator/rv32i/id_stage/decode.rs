@@ -44,6 +44,11 @@ impl DecodeBuilder {
         }
     }
 }
+impl Default for DecodeBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl PortBuilder for DecodeBuilder {
     fn alloc(&mut self, id: usize) -> PortRef {
         match id {

@@ -32,12 +32,6 @@ pub struct WbStageBuilder {
     pub mux: MuxBuilder,
 }
 
-impl ControlBuilder for WbStageBuilder {
-    fn build(self) -> ControlRef {
-        self.mux.build()
-    }
-}
-
 impl PortBuilder for WbStageBuilder {
     fn alloc(&mut self, id: usize) -> PortRef {
         self.mux.alloc(id)

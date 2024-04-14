@@ -59,7 +59,6 @@ impl IfStageBuilder {
         // set up add
         let mut if_add = AddBuilder::new();
         if_add.connect(if_pc_inc.alloc(0), 0);
-        if_pc_inc.build();
         if_add.connect(if_pc.alloc(0), 1);
         // connect npc and add
         if_npc_mux.connect(if_add.alloc(0), MuxConnect::In(0).into());
@@ -95,13 +94,12 @@ impl AsmBuilder for IfStageBuilder {
 }
 impl ControlBuilder for IfStageBuilder {
     fn build(self) -> ControlRef {
-        self.npc_mux.build();
-        self.add.build();
-        Some(ControlRef::from(ControlShared::new(IfStage {
-            pc: self.pc.build().unwrap(),
-            imem: self.imem.build().unwrap(),
+        IfStage {
+            pc: self.pc.build(),
+            imem: self.imem.build(),
             asm: self.asm.build(),
-        })))
+        }
+        .into()
     }
 }
 impl PortBuilder for IfStageBuilder {
@@ -165,7 +163,7 @@ mod tests {
         let pc = ifb.pc.alloc(0);
         let npc = ifb.add.alloc(0);
         let imem = ifb.imem.alloc(0);
-        let if_ = ifb.build().unwrap();
+        let if_ = ifb.build();
         assert_eq!(pc.read(), 0);
         assert_eq!(npc.read(), 4);
         assert_eq!(imem.read(), 0);

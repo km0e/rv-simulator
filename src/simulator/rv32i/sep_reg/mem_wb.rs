@@ -72,15 +72,16 @@ impl AsmBuilder for MemWbBuilder {
 }
 impl ControlBuilder for MemWbBuilder {
     fn build(self) -> ControlRef {
-        Some(ControlRef::from(ControlShared::new(MemWb {
-            reg_write: self.reg_write.build().unwrap(),
-            wb_sel: self.wb_sel.build().unwrap(),
-            npc: self.npc.build().unwrap(),
-            alu_res: self.alu_res.build().unwrap(),
-            mem_data: self.mem_data.build().unwrap(),
-            rd: self.rd.build().unwrap(),
+        MemWb {
+            reg_write: self.reg_write.build(),
+            wb_sel: self.wb_sel.build(),
+            npc: self.npc.build(),
+            alu_res: self.alu_res.build(),
+            mem_data: self.mem_data.build(),
+            rd: self.rd.build(),
             asm: self.asm.build(),
-        })))
+        }
+        .into()
     }
 }
 impl PortBuilder for MemWbBuilder {

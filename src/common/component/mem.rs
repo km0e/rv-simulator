@@ -1,5 +1,4 @@
 use crate::common::abi::*;
-use crate::common::build::*;
 
 const PAGE_SIZE: usize = 4096;
 //pagefault will allocate a new page
@@ -88,8 +87,8 @@ impl MemBuilder {
     }
 }
 impl ControlBuilder for MemBuilder {
-    fn build(self) -> Box<dyn Control> {
-        Some(self.inner.clone())
+    fn build(self) -> ControlRef {
+        self.inner.into_shared().into()
     }
 }
 impl PortBuilder for MemBuilder {
@@ -107,7 +106,7 @@ impl PortBuilder for MemBuilder {
     // 0 for address
     // 1 for input
     fn alloc(&mut self, _: usize) -> PortRef {
-        PortRef::from(self.inner.clone())
+        self.inner.clone().into_shared().into()
     }
 }
 #[derive(Default)]
@@ -215,7 +214,7 @@ pub mod build {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::abi::*;
+    use crate::common::build::*;
 
     #[test]
     fn test_mem() {
@@ -224,7 +223,7 @@ mod tests {
         constant.push(1);
         constant.push(1);
         let mut ab = AddBuilder::default();
-        let add = ab.alloc(0);
+        let add = ab.alloc(Alloc::Out.into());
         ab.connect(constant.alloc(0), 0);
         let mut rb = RegBuilder::new(0);
         rb.connect(ab.alloc(0), 0);
@@ -235,8 +234,8 @@ mod tests {
         tb.connect(rb.alloc(0), 2);
         tb.connect(constant.alloc(0), Connect::Read.into());
         let t = tb.alloc(0);
-        let tc = tb.build().unwrap();
-        let rc = rb.build().unwrap();
+        let tc = tb.build();
+        let rc = rb.build();
         tc.rasing_edge();
         // println!("{:#X}", t.borrow().read(0).unwrap());
         assert_eq!(t.read(), u32::from_ne_bytes([0, 0, 0, 0]));

@@ -1,8 +1,7 @@
 use crate::common::abi::*;
-pub use reg::AsmRegAlloc as AsmAlloc;
-pub use reg::AsmRegConnect as AsmConnect;
 use std::{cell::RefCell, rc::Rc};
 mod reg;
+pub use reg::Alloc;
 trait AsmPort {
     fn read(&self) -> String;
 }
@@ -10,7 +9,10 @@ trait AsmPort {
 pub struct AsmPortShared<T: 'static + AsmPort>(Shared<T>);
 impl<T: 'static + AsmPort> AsmPortShared<T> {
     pub fn new(asm: T) -> Self {
-        Self(Shared::from(asm))
+        Self(asm.into())
+    }
+    pub fn into_inner(self) -> Shared<T> {
+        self.0
     }
 }
 // impl<T: 'static + AsmPort> ToShared<T> for AsmPortShared<T> {
@@ -23,27 +25,33 @@ impl<T: 'static + AsmPort> Clone for AsmPortShared<T> {
         Self(self.0.clone())
     }
 }
-pub struct AsmPortRef(Shared<dyn AsmPort>);
+pub struct AsmPortRef(Rc<RefCell<dyn AsmPort>>);
 impl AsmPortRef {
     pub fn read(&self) -> String {
         self.0.borrow().read()
     }
 }
-impl<T: 'static + AsmPort> From<AsmPortShared<T>> for AsmPortRef {
-    fn from(shared: AsmPortShared<T>) -> Self {
-        Self(shared.to_shared().into())
+// impl<T: 'static + AsmPort> From<AsmPortShared<T>> for AsmPortRef {
+//     fn from(shared: AsmPortShared<T>) -> Self {
+//         Self(shared.to_shared().into())
+//     }
+// }
+
+impl<T: 'static + AsmPort> From<Shared<T>> for AsmPortRef {
+    fn from(asm: Shared<T>) -> Self {
+        Self(asm.into_inner())
     }
 }
 impl<T: 'static + AsmPort + Control> From<ControlShared<T>> for AsmPortRef {
     fn from(shared: ControlShared<T>) -> Self {
-        Self(shared.to_shared())
+        shared.into_shared().into()
     }
 }
-impl<T: 'static + AsmPort> From<T> for AsmPortRef {
-    fn from(asm: T) -> Self {
-        Self(Rc::new(RefCell::new(asm)))
-    }
-}
+// impl<T: 'static + AsmPort> From<T> for AsmPortRef {
+//     fn from(asm: T) -> Self {
+//         Self(Rc::new(RefCell::new(asm)))
+//     }
+// }
 impl Clone for AsmPortRef {
     fn clone(&self) -> Self {
         Self(self.0.clone())
@@ -75,14 +83,14 @@ impl AsmMemBuilder {
     }
 }
 impl ControlBuilder for AsmMemBuilder {
-    fn build(self) -> Box<dyn Control> {
-        ControlShared::from(self.inner.0).into()
+    fn build(self) -> ControlRef {
+        self.inner.into_inner().into()
     }
 }
 impl AsmBuilder for AsmMemBuilder {
     fn asm_alloc(&self, id: usize) -> AsmPortRef {
         assert_eq!(id, Connect::Address.into(), "AsmMemBuilder: invalid id");
-        self.inner.clone().into()
+        self.inner.clone().into_inner().into()
     }
     fn asm_connect(&mut self, _pin: AsmPortRef, _id: usize) {
         panic!("AsmMemBuilder: don't need to asm connect")
@@ -128,13 +136,13 @@ impl AsmPort for Asm {
 }
 
 pub mod build {
-    pub use super::reg::AsmRegAlloc;
+    pub use super::reg::Alloc as AsmRegAlloc;
     pub use super::reg::AsmRegBuilder;
-    pub use super::reg::AsmRegConnect;
-    pub use super::AsmAlloc;
+    pub use super::reg::Connect as AsmRegConnect;
+    pub use super::Alloc as AsmAlloc;
     pub use super::AsmBuilder;
-    pub use super::AsmConnect;
     pub use super::AsmMemBuilder;
     pub use super::AsmPortRef;
     pub use super::AsmPortShared;
+    pub use super::Connect as AsmConnect;
 }

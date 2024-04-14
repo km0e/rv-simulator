@@ -45,13 +45,11 @@ pub struct RegGroupBuilder {
 }
 impl RegGroupBuilder {
     pub fn new(esp: u32) -> Self {
-        let mut x = [0; 32];
-        x[2] = esp;
         Self {
             rd: None,
             rd_data: None,
             write: None,
-            x: IndexPortShared::new(RegGroup { x }),
+            x: IndexPortShared::new(RegGroup::new(esp)),
         }
     }
 }
@@ -75,21 +73,17 @@ impl PortBuilder for RegGroupBuilder {
             _ => panic!("Invalid id"),
         }
     }
-    fn alloc(&mut self, id: usize) -> PortRef {
-        match id {
-            _ => unreachable!("RegGroup has no output"),
-        }
+    fn alloc(&mut self, _id: usize) -> PortRef {
+        unreachable!("RegGroup has no output")
     }
 }
 impl IndexPortBuilder for RegGroupBuilder {
     fn index_connect(&mut self, pin: IndexPortRef, id: usize) {
-        match id {
-            _ => unreachable!("RegGroup has no index output"),
-        }
+        unreachable!("RegGroup has no index output")
     }
     fn index_alloc(&mut self, id: usize) -> IndexPortRef {
         match id {
-            0 => self.x.clone().into(),
+            0 => self.x.shared().into(),
             _ => unreachable!("RegGroup has no index > 0 output"),
         }
     }

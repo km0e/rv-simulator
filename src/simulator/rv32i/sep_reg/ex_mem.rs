@@ -81,17 +81,18 @@ impl AsmBuilder for ExMemBuilder {
 }
 impl ControlBuilder for ExMemBuilder {
     fn build(self) -> ControlRef {
-        Some(ControlRef::from(ControlShared::new(ExMem {
-            reg_write: self.reg_write.build().unwrap(),
-            wb_sel: self.wb_sel.build().unwrap(),
-            mem_write: self.mem_write.build().unwrap(),
-            npc: self.npc.build().unwrap(),
-            alu_res: self.alu_res.build().unwrap(),
-            rs2_data: self.rs2_data.build().unwrap(),
-            rd: self.rd.build().unwrap(),
-            mem_read: self.mem_read.build().unwrap(),
+        ExMem {
+            reg_write: self.reg_write.build(),
+            wb_sel: self.wb_sel.build(),
+            mem_write: self.mem_write.build(),
+            npc: self.npc.build(),
+            alu_res: self.alu_res.build(),
+            rs2_data: self.rs2_data.build(),
+            rd: self.rd.build(),
+            mem_read: self.mem_read.build(),
             asm: self.asm.build(),
-        })))
+        }
+        .into()
     }
 }
 impl PortBuilder for ExMemBuilder {

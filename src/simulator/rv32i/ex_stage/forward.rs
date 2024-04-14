@@ -151,10 +151,8 @@ mod tests {
         forward.connect(consts.alloc(3), Connect::RdMemWrite.into());
         forward.connect(consts.alloc(4), Connect::RdWb.into());
         forward.connect(consts.alloc(5), Connect::RdWbWrite.into());
-        consts.build();
         let forward1_ = forward.alloc(Alloc::Forward1.into());
         let forward2_ = forward.alloc(Alloc::Forward2.into());
-        forward.build();
         assert_eq!(forward1_.read(), forward1);
         assert_eq!(forward2_.read(), forward2);
     }
