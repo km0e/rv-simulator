@@ -67,7 +67,6 @@ impl PortBuilder for MemWbBuilder {
             Alloc::AluRes => self.alu_res.alloc(RegAlloc::Out),
             Alloc::MemData => self.mem_data.alloc(RegAlloc::Out),
             Alloc::Rd => self.rd.alloc(RegAlloc::Out),
-            _ => panic!("Invalid id"),
         }
     }
     fn connect(&mut self, pin: PortRef, id: Connect) {
@@ -94,11 +93,11 @@ impl PortBuilder for MemWbBuilder {
                 self.mem_data.connect(pin.clone(), RegConnect::Clear);
                 self.rd.connect(pin, RegConnect::Clear);
             }
-            _ => panic!("Invalid id"),
         }
     }
 }
 
+#[derive(Debug)]
 pub struct MemWb {
     pub reg_write: ControlRef,
     pub wb_sel: ControlRef,
@@ -128,18 +127,39 @@ impl Control for MemWb {
         self.rd.falling_edge();
         self.asm.falling_edge();
     }
-    #[cfg(debug_assertions)]
-    fn debug(&self) -> String {
-        format!(
-            "MEM/WB : {}\nREG_WRITE\t: {:8} WB_SEL\t: {:8} NPC\t\t: {:8} ALU_RES\t: {:8} MEM_DATA\t: {:8}\nRD\t\t: {}",
-            self.asm.debug(),
-            self.reg_write.debug(),
-            self.wb_sel.debug(),
-            self.npc.debug(),
-            self.alu_res.debug(),
-            self.mem_data.debug(),
-            self.rd.debug()
-        )
+    fn inout(&self) -> Vec<(String, u32, u32)> {
+        let mut res = Vec::new();
+        res.push((
+            "reg_write".to_string(),
+            self.reg_write.output()[0].1,
+            self.reg_write.output()[0].1,
+        ));
+        res.push((
+            "wb_sel".to_string(),
+            self.wb_sel.output()[0].1,
+            self.wb_sel.output()[0].1,
+        ));
+        res.push((
+            "npc".to_string(),
+            self.npc.output()[0].1,
+            self.npc.output()[0].1,
+        ));
+        res.push((
+            "alu_res".to_string(),
+            self.alu_res.output()[0].1,
+            self.alu_res.output()[0].1,
+        ));
+        res.push((
+            "mem_data".to_string(),
+            self.mem_data.output()[0].1,
+            self.mem_data.output()[0].1,
+        ));
+        res.push((
+            "rd".to_string(),
+            self.rd.output()[0].1,
+            self.rd.output()[0].1,
+        ));
+        res
     }
 }
 

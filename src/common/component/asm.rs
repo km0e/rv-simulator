@@ -1,8 +1,8 @@
 use crate::common::abi::*;
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, fmt::Debug, rc::Rc};
 mod reg;
 pub use reg::Alloc;
-trait AsmPort {
+trait AsmPort: Debug {
     fn read(&self) -> String;
 }
 #[derive(Default)]
@@ -25,6 +25,7 @@ impl<T: 'static + AsmPort> Clone for AsmPortShared<T> {
         Self(self.0.clone())
     }
 }
+#[derive(Debug)]
 pub struct AsmPortRef(Rc<RefCell<dyn AsmPort>>);
 impl AsmPortRef {
     pub fn read(&self) -> String {
@@ -105,11 +106,10 @@ impl PortBuilder for AsmMemBuilder {
     fn connect(&mut self, pin: PortRef, id: Self::Connect) {
         match id {
             Self::Connect::Address => self.inner.0.borrow_mut().address = Some(pin),
-            _ => panic!("AsmMemBuilder: invalid connect id"),
         }
     }
 }
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct Asm {
     pub address: Option<PortRef>,
     pub mem: Vec<String>,
@@ -121,10 +121,24 @@ impl Asm {
 }
 impl Control for Asm {
     fn rasing_edge(&mut self) {}
-    #[cfg(debug_assertions)]
-    fn debug(&self) -> String {
-        "Asm".to_string()
+    fn input(&self) -> Vec<(String, u32)> {
+        unimplemented!("Asm: input")
     }
+    fn output(&self) -> Vec<(String, u32)> {
+        unimplemented!("Asm: output")
+    }
+}
+impl AsmControl for Asm {
+    fn asm(&self, addr: u32) -> String {
+        if addr < self.mem.len() as u32 {
+            self.mem[(addr / 4) as usize].clone()
+        } else {
+            "Invalid instruction".to_string()
+        }
+    }
+}
+pub trait AsmControl: Control {
+    fn asm(&self, addr: u32) -> String;
 }
 impl AsmPort for Asm {
     fn read(&self) -> String {
@@ -145,6 +159,6 @@ pub mod build {
     pub use super::AsmBuilder;
     pub use super::AsmMemBuilder;
     pub use super::AsmPortRef;
-    pub use super::AsmPortShared;
+
     pub use super::Connect as AsmConnect;
 }

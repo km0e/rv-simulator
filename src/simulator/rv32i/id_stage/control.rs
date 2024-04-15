@@ -30,6 +30,12 @@ pub struct CtrlSigBuilder {
     load: PortShared<LoadSiganl>,
 }
 
+impl Default for CtrlSigBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CtrlSigBuilder {
     pub fn new() -> Self {
         Self {
@@ -62,10 +68,9 @@ impl PortBuilder for CtrlSigBuilder {
             Alloc::WbSel => PortRef::from(self.wb_sel.clone()),
             Alloc::RegWrite => PortRef::from(self.reg_write.clone()),
             Alloc::Load => PortRef::from(self.load.clone()),
-            _ => panic!("Invalid id"),
         }
     }
-    fn connect(&mut self, pin: PortRef, id: Connect) {
+    fn connect(&mut self, pin: PortRef, _id: Connect) {
         self.alu_ctl.borrow_mut().input = Some(pin.clone());
         self.imm_sel.borrow_mut().input = Some(pin.clone());
         self.pc_sel.borrow_mut().input = Some(pin.clone());
@@ -78,13 +83,14 @@ impl PortBuilder for CtrlSigBuilder {
         self.branch_type.connect(pin, BitConnect::In);
     }
 }
+#[derive(Debug)]
 pub struct Control {}
 impl Port for Control {
     fn read(&self) -> u32 {
         unimplemented!()
     }
 }
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Jal_ {
     pub input: Option<PortRef>,
 }
@@ -105,7 +111,7 @@ impl Port for Jal_ {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct BranchEn {
     pub input: Option<PortRef>,
 }
@@ -127,7 +133,7 @@ impl Port for BranchEn {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct AluCtl {
     pub input: Option<PortRef>,
 }
@@ -152,7 +158,7 @@ impl Port for AluCtl {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct ImmSel {
     pub input: Option<PortRef>,
 }
@@ -173,7 +179,7 @@ impl Port for ImmSel {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct PcSel {
     pub input: Option<PortRef>,
 }
@@ -194,7 +200,7 @@ impl Port for PcSel {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct MemWrite {
     pub input: Option<PortRef>,
 }
@@ -215,7 +221,7 @@ impl Port for MemWrite {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct WbSel {
     pub input: Option<PortRef>,
 }
@@ -237,7 +243,7 @@ impl Port for WbSel {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct RegWrite {
     pub input: Option<PortRef>,
 }
@@ -258,7 +264,7 @@ impl Port for RegWrite {
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct LoadSiganl {
     pub input: Option<PortRef>,
 }

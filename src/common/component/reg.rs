@@ -36,7 +36,6 @@ impl PortBuilder for RegBuilder {
             Self::Connect::In => self.inner.borrow_mut().in_ = Some(pin),
             Self::Connect::Enable => self.inner.borrow_mut().enable = Some(pin),
             Self::Connect::Clear => self.inner.borrow_mut().clear = Some(pin),
-            _ => panic!("Invalid id"),
         }
     }
     fn alloc(&mut self, _: Self::Alloc) -> PortRef {
@@ -44,7 +43,7 @@ impl PortBuilder for RegBuilder {
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct Reg {
     pub in_: Option<PortRef>,
     pub enable: Option<PortRef>,
@@ -80,9 +79,15 @@ impl Control for Reg {
         }
         self.output.borrow_mut().data = self.data;
     }
-    #[cfg(debug_assertions)]
-    fn debug(&self) -> String {
-        format!("{:X}", self.output.borrow().data)
+    fn input(&self) -> Vec<(String, u32)> {
+        let mut res = vec![];
+        res.push(("in".to_string(), self.in_.as_ref().unwrap().read()));
+        res.push(("en".to_string(), self.enable.as_ref().unwrap().read()));
+        res.push(("clr".to_string(), self.clear.as_ref().unwrap().read()));
+        res
+    }
+    fn output(&self) -> Vec<(String, u32)> {
+        vec![("out".to_string(), self.output.borrow().data)]
     }
 }
 pub mod build {
@@ -102,10 +107,10 @@ mod tests {
         constant.push(2);
         constant.push(1);
         constant.push(1);
-        tb.connect(constant.alloc(ConstsAlloc::Out(0)), Connect::In.into());
+        tb.connect(constant.alloc(ConstsAlloc::Out(0)), Connect::In);
         let t = tb.alloc(RegAlloc::Out);
-        tb.connect(constant.alloc(ConstsAlloc::Out(1)), Connect::Enable.into());
-        tb.connect(constant.alloc(ConstsAlloc::Out(2)), Connect::Clear.into());
+        tb.connect(constant.alloc(ConstsAlloc::Out(1)), Connect::Enable);
+        tb.connect(constant.alloc(ConstsAlloc::Out(2)), Connect::Clear);
         let tc = tb.build();
         assert_eq!(t.read(), 1);
         tc.rasing_edge();

@@ -33,7 +33,6 @@ impl PortBuilder for RegMuxBuilder {
             Connect::Rd => self.rd = Some(pin),
             Connect::RdData => self.rd_data = Some(pin),
             Connect::Write => self.write = Some(pin),
-            _ => panic!("Invalid id"),
         }
     }
     fn alloc(&mut self, _: Alloc) -> PortRef {
@@ -53,7 +52,6 @@ impl IndexPortBuilder for RegMuxBuilder {
     fn index_connect(&mut self, pin: IndexPortRef, id: IndexConnect) {
         match id {
             IndexConnect::X => self.x = Some(pin),
-            _ => panic!("Invalid id"),
         }
     }
     fn index_alloc(&mut self, _id: IndexAlloc) -> IndexPortRef {
@@ -61,6 +59,7 @@ impl IndexPortBuilder for RegMuxBuilder {
     }
 }
 
+#[derive(Debug)]
 struct RegMux {
     rs: PortRef,
     rd: PortRef,

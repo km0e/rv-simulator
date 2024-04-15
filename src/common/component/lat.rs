@@ -1,6 +1,6 @@
 use crate::common::abi::*;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Lat {
     pub data: u32,
 }

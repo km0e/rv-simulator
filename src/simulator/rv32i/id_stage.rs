@@ -103,7 +103,6 @@ impl PortBuilder for IdStageBuilder {
             Alloc::Rs1Data => self.xregs.alloc(XregsAlloc::R1Data),
             Alloc::Rs2Data => self.xregs.alloc(XregsAlloc::R2Data),
             Alloc::Load => self.control.alloc(CtrlAlloc::Load),
-            _ => panic!("Invalid id"),
         }
     }
     fn connect(&mut self, pin: PortRef, id: Connect) {
@@ -115,7 +114,6 @@ impl PortBuilder for IdStageBuilder {
             Connect::Rd => self.xregs.connect(pin.clone(), XregsConnect::Rd),
             Connect::RdData => self.xregs.connect(pin.clone(), XregsConnect::RdData),
             Connect::RegWrite => self.xregs.connect(pin.clone(), XregsConnect::Write),
-            _ => panic!("Invalid id"),
         }
     }
 }

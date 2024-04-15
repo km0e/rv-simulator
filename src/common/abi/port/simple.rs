@@ -1,14 +1,15 @@
 use std::cell::{Ref, RefCell, RefMut};
+use std::fmt::Debug;
 use std::rc::Rc;
 
 use super::super::utils::Shared;
 
-pub trait Port {
+pub trait Port: Debug {
     // get data from the component by id
     fn read(&self) -> u32;
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct PortShared<T: 'static + Port>(Shared<T>);
 impl<T: 'static + Port> Clone for PortShared<T> {
     fn clone(&self) -> Self {
@@ -29,11 +30,17 @@ impl<T: Port> PortShared<T> {
         self.0
     }
 }
+impl<T: 'static + Port> From<T> for PortRef {
+    fn from(shd: T) -> Self {
+        Self(Shared::from(shd).into_inner())
+    }
+}
 impl<T: 'static + Port> From<Shared<T>> for PortRef {
     fn from(shared: Shared<T>) -> Self {
         Self(shared.into_inner())
     }
 }
+#[derive(Debug)]
 pub struct PortRef(Rc<RefCell<dyn Port>>);
 impl<T: 'static + Port> From<PortShared<T>> for PortRef {
     fn from(shared: PortShared<T>) -> Self {

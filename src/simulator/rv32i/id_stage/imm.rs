@@ -13,19 +13,18 @@ pub struct ImmBuilder {
 impl PortBuilder for ImmBuilder {
     type Alloc = Alloc;
     type Connect = Connect;
-    fn alloc(&mut self, id: Alloc) -> PortRef {
+    fn alloc(&mut self, _id: Alloc) -> PortRef {
         PortRef::from(self.inner.clone())
     }
     fn connect(&mut self, pin: PortRef, id: Connect) {
         match id {
             Connect::Opcode => self.inner.borrow_mut().opcode = Some(pin),
             Connect::Inst => self.inner.borrow_mut().inst = Some(pin),
-            _ => panic!("Invalid id"),
         }
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Imm {
     pub opcode: Option<PortRef>,
     pub inst: Option<PortRef>,
@@ -65,11 +64,7 @@ impl Port for Imm {
         }) as u32
     }
 }
-pub mod build {
-    pub use super::Alloc as ImmAlloc;
-    pub use super::Connect as ImmConnect;
-    pub use super::ImmBuilder;
-}
+pub mod build {}
 #[cfg(test)]
 mod tests {
     use super::*;

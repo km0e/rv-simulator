@@ -28,7 +28,7 @@ impl PortBuilder for AddBuilder {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Add {
     pub input: Vec<PortRef>,
 }
@@ -55,9 +55,9 @@ mod tests {
         let mut constant = ConstsBuilder::default();
         constant.push(1);
         constant.push(2);
-        let t = tb.alloc(Alloc::Out.into());
-        tb.connect(constant.alloc(ConstsAlloc::Out(0)), Connect::In(0).into());
-        tb.connect(constant.alloc(ConstsAlloc::Out(1)), Connect::In(1).into());
+        let t = tb.alloc(Alloc::Out);
+        tb.connect(constant.alloc(ConstsAlloc::Out(0)), Connect::In(0));
+        tb.connect(constant.alloc(ConstsAlloc::Out(1)), Connect::In(1));
         assert_eq!(t.read(), 3);
         assert_eq!(t.read(), 3);
     }

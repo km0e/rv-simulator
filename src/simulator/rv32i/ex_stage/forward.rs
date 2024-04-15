@@ -44,7 +44,6 @@ impl PortBuilder for ForwardBuilder {
         match id {
             Alloc::Forward1 => PortRef::from(self.forward1.clone()),
             Alloc::Forward2 => PortRef::from(self.forward2.clone()),
-            _ => panic!("Invalid id"),
         }
     }
     fn connect(&mut self, pin: PortRef, id: Connect) {
@@ -67,12 +66,11 @@ impl PortBuilder for ForwardBuilder {
                 self.forward1.borrow_mut().rd_wb_write = Some(pin.clone());
                 self.forward2.borrow_mut().rd_wb_write = Some(pin.clone());
             }
-            _ => panic!("Invalid id"),
         }
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Forward {
     pub rs: Option<PortRef>,
     pub rd_mem: Option<PortRef>,
@@ -147,17 +145,14 @@ mod tests {
         consts.push(rd_mem_write);
         consts.push(rd_wb);
         consts.push(rd_wb_write);
-        forward.connect(consts.alloc(ConstsAlloc::Out(0)), Connect::Rs1.into());
-        forward.connect(consts.alloc(ConstsAlloc::Out(1)), Connect::Rs2.into());
-        forward.connect(consts.alloc(ConstsAlloc::Out(2)), Connect::RdMem.into());
-        forward.connect(
-            consts.alloc(ConstsAlloc::Out(3)),
-            Connect::RdMemWrite.into(),
-        );
-        forward.connect(consts.alloc(ConstsAlloc::Out(4)), Connect::RdWb.into());
-        forward.connect(consts.alloc(ConstsAlloc::Out(5)), Connect::RdWbWrite.into());
-        let forward1_ = forward.alloc(Alloc::Forward1.into());
-        let forward2_ = forward.alloc(Alloc::Forward2.into());
+        forward.connect(consts.alloc(ConstsAlloc::Out(0)), Connect::Rs1);
+        forward.connect(consts.alloc(ConstsAlloc::Out(1)), Connect::Rs2);
+        forward.connect(consts.alloc(ConstsAlloc::Out(2)), Connect::RdMem);
+        forward.connect(consts.alloc(ConstsAlloc::Out(3)), Connect::RdMemWrite);
+        forward.connect(consts.alloc(ConstsAlloc::Out(4)), Connect::RdWb);
+        forward.connect(consts.alloc(ConstsAlloc::Out(5)), Connect::RdWbWrite);
+        let forward1_ = forward.alloc(Alloc::Forward1);
+        let forward2_ = forward.alloc(Alloc::Forward2);
         assert_eq!(forward1_.read(), forward1);
         assert_eq!(forward2_.read(), forward2);
     }

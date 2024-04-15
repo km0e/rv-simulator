@@ -1,10 +1,12 @@
 use std::cell::{Ref, RefCell, RefMut};
+use std::fmt::Debug;
 use std::rc::Rc;
 
 use super::super::utils::Shared;
-pub trait IndexPort {
+pub trait IndexPort: Debug {
     fn read(&self, index: usize) -> u32;
 }
+#[derive(Debug)]
 pub struct IndexPortShared<T: 'static + IndexPort>(Shared<T>);
 impl<T: IndexPort> IndexPortShared<T> {
     pub fn new(component: T) -> Self {
@@ -34,6 +36,7 @@ impl<T: IndexPort> Clone for IndexPortShared<T> {
         Self(self.0.clone())
     }
 }
+#[derive(Debug)]
 pub struct IndexPortRef(Rc<RefCell<dyn IndexPort>>);
 impl IndexPortRef {
     pub fn read(&self, index: usize) -> u32 {

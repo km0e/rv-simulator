@@ -22,14 +22,15 @@ impl BitBuilder {
 impl PortBuilder for BitBuilder {
     type Alloc = Alloc;
     type Connect = Connect;
-    fn alloc(&mut self, id: Self::Alloc) -> PortRef {
+    fn alloc(&mut self, _id: Self::Alloc) -> PortRef {
         PortRef::from(self.inner.clone())
     }
-    fn connect(&mut self, pin: PortRef, id: Self::Connect) {
+    fn connect(&mut self, pin: PortRef, _id: Self::Connect) {
         self.inner.borrow_mut().data = Some(pin);
     }
 }
 
+#[derive(Debug)]
 pub struct Bit {
     pub interval: (u8, u8), //[]
     pub data: Option<PortRef>,

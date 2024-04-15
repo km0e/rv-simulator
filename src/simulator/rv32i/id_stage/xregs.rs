@@ -7,7 +7,7 @@ use mux::Alloc as RegMuxAlloc;
 use mux::Connect as RegMuxConnect;
 use mux::IndexConnect as RegMuxIndexConnect;
 use mux::RegMuxBuilder;
-use rgroup::Alloc as RegGroupAlloc;
+
 use rgroup::Connect as RegGroupConnect;
 use rgroup::IndexAlloc as RegGroupIndexAlloc;
 pub enum Alloc {
@@ -50,14 +50,8 @@ impl XregsBuilder {
         let mut x = RegGroupBuilder::new(esp);
         let mut mux_rs1 = RegMuxBuilder::default();
         let mut mux_rs2 = RegMuxBuilder::default();
-        mux_rs1.index_connect(
-            x.index_alloc(RegGroupIndexAlloc::X.into()),
-            RegMuxIndexConnect::X.into(),
-        );
-        mux_rs2.index_connect(
-            x.index_alloc(RegGroupIndexAlloc::X.into()),
-            RegMuxIndexConnect::X.into(),
-        );
+        mux_rs1.index_connect(x.index_alloc(RegGroupIndexAlloc::X), RegMuxIndexConnect::X);
+        mux_rs2.index_connect(x.index_alloc(RegGroupIndexAlloc::X), RegMuxIndexConnect::X);
         Self {
             x,
             mux_rs1,
@@ -70,35 +64,29 @@ impl PortBuilder for XregsBuilder {
     type Connect = Connect;
     fn connect(&mut self, pin: PortRef, id: Connect) {
         match id {
-            Connect::Rs1 => self.mux_rs1.connect(pin, RegMuxConnect::Rs.into()),
-            Connect::Rs2 => self.mux_rs2.connect(pin, RegMuxConnect::Rs.into()),
+            Connect::Rs1 => self.mux_rs1.connect(pin, RegMuxConnect::Rs),
+            Connect::Rs2 => self.mux_rs2.connect(pin, RegMuxConnect::Rs),
             Connect::Rd => {
-                self.mux_rs1.connect(pin.clone(), RegMuxConnect::Rd.into());
-                self.mux_rs2.connect(pin.clone(), RegMuxConnect::Rd.into());
-                self.x.connect(pin, RegGroupConnect::Rd.into());
+                self.mux_rs1.connect(pin.clone(), RegMuxConnect::Rd);
+                self.mux_rs2.connect(pin.clone(), RegMuxConnect::Rd);
+                self.x.connect(pin, RegGroupConnect::Rd);
             }
             Connect::RdData => {
-                self.mux_rs1
-                    .connect(pin.clone(), RegMuxConnect::RdData.into());
-                self.mux_rs2
-                    .connect(pin.clone(), RegMuxConnect::RdData.into());
-                self.x.connect(pin, RegGroupConnect::RdData.into());
+                self.mux_rs1.connect(pin.clone(), RegMuxConnect::RdData);
+                self.mux_rs2.connect(pin.clone(), RegMuxConnect::RdData);
+                self.x.connect(pin, RegGroupConnect::RdData);
             }
             Connect::Write => {
-                self.mux_rs1
-                    .connect(pin.clone(), RegMuxConnect::Write.into());
-                self.mux_rs2
-                    .connect(pin.clone(), RegMuxConnect::Write.into());
-                self.x.connect(pin, RegGroupConnect::Write.into());
+                self.mux_rs1.connect(pin.clone(), RegMuxConnect::Write);
+                self.mux_rs2.connect(pin.clone(), RegMuxConnect::Write);
+                self.x.connect(pin, RegGroupConnect::Write);
             }
-            _ => panic!("Invalid id"),
         }
     }
     fn alloc(&mut self, id: Alloc) -> PortRef {
         match id {
-            Alloc::R1Data => self.mux_rs1.alloc(RegMuxAlloc::Out.into()),
-            Alloc::R2Data => self.mux_rs2.alloc(RegMuxAlloc::Out.into()),
-            _ => panic!("Invalid id"),
+            Alloc::R1Data => self.mux_rs1.alloc(RegMuxAlloc::Out),
+            Alloc::R2Data => self.mux_rs2.alloc(RegMuxAlloc::Out),
         }
     }
 }
@@ -120,13 +108,13 @@ mod tests {
         consts.push(0);
         consts.push(1);
         consts.push(4);
-        rsb.connect(consts.alloc(ConstsAlloc::Out(0)), Connect::Rs1.into());
-        rsb.connect(consts.alloc(ConstsAlloc::Out(1)), Connect::Rs2.into());
-        rsb.connect(consts.alloc(ConstsAlloc::Out(0)), Connect::Rd.into());
-        rsb.connect(consts.alloc(ConstsAlloc::Out(1)), Connect::Write.into());
-        rsb.connect(consts.alloc(ConstsAlloc::Out(2)), Connect::RdData.into());
-        let r1 = rsb.alloc(Alloc::R1Data.into());
-        let r2 = rsb.alloc(Alloc::R2Data.into());
+        rsb.connect(consts.alloc(ConstsAlloc::Out(0)), Connect::Rs1);
+        rsb.connect(consts.alloc(ConstsAlloc::Out(1)), Connect::Rs2);
+        rsb.connect(consts.alloc(ConstsAlloc::Out(0)), Connect::Rd);
+        rsb.connect(consts.alloc(ConstsAlloc::Out(1)), Connect::Write);
+        rsb.connect(consts.alloc(ConstsAlloc::Out(2)), Connect::RdData);
+        let r1 = rsb.alloc(Alloc::R1Data);
+        let r2 = rsb.alloc(Alloc::R2Data);
         let rs = rsb.build();
         assert_eq!(r1.read(), 4);
         assert_eq!(r2.read(), 0);

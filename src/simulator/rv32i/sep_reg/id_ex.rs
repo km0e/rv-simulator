@@ -131,7 +131,6 @@ impl PortBuilder for IdExBuilder {
             Alloc::Rs2 => self.rs2.alloc(RegAlloc::Out),
             Alloc::Opco => self.opco.alloc(RegAlloc::Out),
             Alloc::LoadSignal => self.load_signal.alloc(RegAlloc::Out),
-            _ => panic!("Invalid id"),
         }
     }
     fn connect(&mut self, pin: PortRef, id: Connect) {
@@ -197,10 +196,10 @@ impl PortBuilder for IdExBuilder {
                 self.load_signal.connect(pin, RegConnect::Clear);
             }
             Connect::LoadSignal => self.load_signal.connect(pin, RegConnect::In),
-            _ => panic!("Invalid id"),
         }
     }
 }
+#[derive(Debug)]
 pub struct IdEx {
     pub reg_write: ControlRef,
     pub wb_sel: ControlRef,
@@ -269,31 +268,110 @@ impl Control for IdEx {
         self.load_signal.falling_edge();
         self.asm.falling_edge();
     }
-    #[cfg(debug_assertions)]
-    fn debug(&self) -> String {
-        format!(
-            "ID/EX : {}\nREG_WRITE\t: {:8} WB_SEL\t: {:8} MEM_WRITE\t: {:8} JAL_\t\t: {:8} BRANCH_EN\t: {:8}\nPC_SEL\t\t: {:8} IMM_SEL\t: {:8} ALU_CTRL\t: {:8} BRANCH_TYPE\t: {:8} NPC\t\t: {:8}\nPC\t\t: {:8} RS1_DATA\t: {:8} RS2_DATA\t: {:8} IMM\t\t: {:8} RS1\t\t: {:8}\nRD\t\t: {:8} RS2\t\t: {:8} OPCODE\t: {:8} LOAD_SIGNAL\t: {}",
-            self.asm.debug(),
-            self.reg_write.debug(),
-            self.wb_sel.debug(),
-            self.mem_write.debug(),
-            self.jal_.debug(),
-            self.branch_sel.debug(),
-            self.pc_sel.debug(),
-            self.imm_sel.debug(),
-            self.alu_ctrl.debug(),
-            self.branch_type.debug(),
-            self.npc.debug(),
-            self.pc.debug(),
-            self.rs1_data.debug(),
-            self.rs2_data.debug(),
-            self.imm.debug(),
-            self.rs1.debug(),
-            self.rd.debug(),
-            self.rs2.debug(),
-            self.opco.debug(),
-            self.load_signal.debug()
-        )
+    fn input(&self) -> Vec<(String, u32)> {
+        unimplemented!()
+    }
+    fn output(&self) -> Vec<(String, u32)> {
+        unimplemented!()
+    }
+    fn inout(&self) -> Vec<(String, u32, u32)> {
+        let mut res = Vec::new();
+        res.push((
+            "reg_write".to_string(),
+            self.reg_write.input()[0].1,
+            self.reg_write.output()[0].1,
+        ));
+        res.push((
+            "wb_sel".to_string(),
+            self.wb_sel.input()[0].1,
+            self.wb_sel.output()[0].1,
+        ));
+        res.push((
+            "mem_write".to_string(),
+            self.mem_write.input()[0].1,
+            self.mem_write.output()[0].1,
+        ));
+        res.push((
+            "jal_".to_string(),
+            self.jal_.input()[0].1,
+            self.jal_.output()[0].1,
+        ));
+        res.push((
+            "branch_sel".to_string(),
+            self.branch_sel.input()[0].1,
+            self.branch_sel.output()[0].1,
+        ));
+        res.push((
+            "pc_sel".to_string(),
+            self.pc_sel.input()[0].1,
+            self.pc_sel.output()[0].1,
+        ));
+        res.push((
+            "imm_sel".to_string(),
+            self.imm_sel.input()[0].1,
+            self.imm_sel.output()[0].1,
+        ));
+        res.push((
+            "alu_ctrl".to_string(),
+            self.alu_ctrl.input()[0].1,
+            self.alu_ctrl.output()[0].1,
+        ));
+        res.push((
+            "branch_type".to_string(),
+            self.branch_type.input()[0].1,
+            self.branch_type.output()[0].1,
+        ));
+        res.push((
+            "npc".to_string(),
+            self.npc.input()[0].1,
+            self.npc.output()[0].1,
+        ));
+        res.push((
+            "pc".to_string(),
+            self.pc.input()[0].1,
+            self.pc.output()[0].1,
+        ));
+        res.push((
+            "rs1_data".to_string(),
+            self.rs1_data.input()[0].1,
+            self.rs1_data.output()[0].1,
+        ));
+        res.push((
+            "rs2_data".to_string(),
+            self.rs2_data.input()[0].1,
+            self.rs2_data.output()[0].1,
+        ));
+        res.push((
+            "imm".to_string(),
+            self.imm.input()[0].1,
+            self.imm.output()[0].1,
+        ));
+        res.push((
+            "rs1".to_string(),
+            self.rs1.input()[0].1,
+            self.rs1.output()[0].1,
+        ));
+        res.push((
+            "rd".to_string(),
+            self.rd.input()[0].1,
+            self.rd.output()[0].1,
+        ));
+        res.push((
+            "rs2".to_string(),
+            self.rs2.input()[0].1,
+            self.rs2.output()[0].1,
+        ));
+        res.push((
+            "opco".to_string(),
+            self.opco.input()[0].1,
+            self.opco.output()[0].1,
+        ));
+        res.push((
+            "load_signal".to_string(),
+            self.load_signal.input()[0].1,
+            self.load_signal.output()[0].1,
+        ));
+        res
     }
 }
 

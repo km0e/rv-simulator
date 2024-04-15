@@ -58,10 +58,9 @@ impl PortBuilder for DecodeBuilder {
             Alloc::Rs2 => self.rs2.alloc(BitAlloc::Out),
             Alloc::Rd => self.rd.alloc(BitAlloc::Out),
             Alloc::Opcode => self.opcode.alloc(BitAlloc::Out),
-            _ => panic!("Invalid id"),
         }
     }
-    fn connect(&mut self, pin: PortRef, id: Connect) {
+    fn connect(&mut self, pin: PortRef, _id: Connect) {
         self.rs1.connect(pin.clone(), BitConnect::In);
         self.rs2.connect(pin.clone(), BitConnect::In);
         self.rd.connect(pin.clone(), BitConnect::In);

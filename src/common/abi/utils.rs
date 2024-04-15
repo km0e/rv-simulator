@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Shared<T: 'static>(Rc<RefCell<T>>);
 
 impl<T: 'static> Shared<T> {

@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::fmt::Debug;
 use std::rc::Rc;
 
 use super::Shared;
@@ -32,6 +33,7 @@ impl<T: 'static + Control> Clone for ControlShared<T> {
         Self(self.0.clone())
     }
 }
+#[derive(Debug)]
 pub struct ControlRef(Rc<RefCell<dyn Control>>);
 impl ControlRef {
     pub fn into_inner(self) -> Rc<RefCell<dyn Control>> {
@@ -60,9 +62,14 @@ impl ControlRef {
     pub fn falling_edge(&self) {
         self.0.borrow_mut().falling_edge()
     }
-    #[cfg(debug_assertions)]
-    pub fn debug(&self) -> String {
-        self.0.borrow().debug()
+    pub fn input(&self) -> Vec<(String, u32)> {
+        self.0.borrow().input()
+    }
+    pub fn output(&self) -> Vec<(String, u32)> {
+        self.0.borrow().output()
+    }
+    pub fn inout(&self) -> Vec<(String, u32, u32)> {
+        self.0.borrow().inout()
     }
 }
 
@@ -72,13 +79,20 @@ impl Clone for ControlRef {
     }
 }
 
-pub trait Control {
+pub trait Control: Debug {
     // update the component
     fn rasing_edge(&mut self) {}
     // update the component
     fn falling_edge(&mut self) {
         self.rasing_edge();
     }
-    #[cfg(debug_assertions)]
-    fn debug(&self) -> String;
+    fn input(&self) -> Vec<(String, u32)> {
+        unimplemented!("input not implemented")
+    }
+    fn output(&self) -> Vec<(String, u32)> {
+        unimplemented!("output not implemented")
+    }
+    fn inout(&self) -> Vec<(String, u32, u32)> {
+        unimplemented!("inout not implemented")
+    }
 }

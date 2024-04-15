@@ -68,57 +68,51 @@ impl PortBuilder for ExMemBuilder {
     type Connect = Connect;
     fn alloc(&mut self, id: Alloc) -> PortRef {
         match id {
-            Alloc::RegWrite => self.reg_write.alloc(RegAlloc::Out.into()),
-            Alloc::WbSel => self.wb_sel.alloc(RegAlloc::Out.into()),
-            Alloc::MemWrite => self.mem_write.alloc(RegAlloc::Out.into()),
-            Alloc::Npc => self.npc.alloc(RegAlloc::Out.into()),
-            Alloc::AluRes => self.alu_res.alloc(RegAlloc::Out.into()),
-            Alloc::Rs2Data => self.rs2_data.alloc(RegAlloc::Out.into()),
-            Alloc::Rd => self.rd.alloc(RegAlloc::Out.into()),
-            Alloc::MemRead => self.mem_read.alloc(RegAlloc::Out.into()),
-            _ => panic!("Invalid id"),
+            Alloc::RegWrite => self.reg_write.alloc(RegAlloc::Out),
+            Alloc::WbSel => self.wb_sel.alloc(RegAlloc::Out),
+            Alloc::MemWrite => self.mem_write.alloc(RegAlloc::Out),
+            Alloc::Npc => self.npc.alloc(RegAlloc::Out),
+            Alloc::AluRes => self.alu_res.alloc(RegAlloc::Out),
+            Alloc::Rs2Data => self.rs2_data.alloc(RegAlloc::Out),
+            Alloc::Rd => self.rd.alloc(RegAlloc::Out),
+            Alloc::MemRead => self.mem_read.alloc(RegAlloc::Out),
         }
     }
     fn connect(&mut self, pin: PortRef, id: Connect) {
         match id {
-            Connect::RegWrite => self.reg_write.connect(pin, RegConnect::In.into()),
-            Connect::WbSel => self.wb_sel.connect(pin, RegConnect::In.into()),
-            Connect::MemWrite => self.mem_write.connect(pin, RegConnect::In.into()),
-            Connect::Npc => self.npc.connect(pin, RegConnect::In.into()),
-            Connect::AluRes => self.alu_res.connect(pin, RegConnect::In.into()),
-            Connect::Rs2Data => self.rs2_data.connect(pin, RegConnect::In.into()),
-            Connect::Rd => self.rd.connect(pin, RegConnect::In.into()),
+            Connect::RegWrite => self.reg_write.connect(pin, RegConnect::In),
+            Connect::WbSel => self.wb_sel.connect(pin, RegConnect::In),
+            Connect::MemWrite => self.mem_write.connect(pin, RegConnect::In),
+            Connect::Npc => self.npc.connect(pin, RegConnect::In),
+            Connect::AluRes => self.alu_res.connect(pin, RegConnect::In),
+            Connect::Rs2Data => self.rs2_data.connect(pin, RegConnect::In),
+            Connect::Rd => self.rd.connect(pin, RegConnect::In),
             Connect::Ebable => {
-                self.reg_write
-                    .connect(pin.clone(), RegConnect::Enable.into());
-                self.wb_sel.connect(pin.clone(), RegConnect::Enable.into());
-                self.mem_write
-                    .connect(pin.clone(), RegConnect::Enable.into());
-                self.npc.connect(pin.clone(), RegConnect::Enable.into());
-                self.alu_res.connect(pin.clone(), RegConnect::Enable.into());
-                self.rs2_data
-                    .connect(pin.clone(), RegConnect::Enable.into());
-                self.rd.connect(pin.clone(), RegConnect::Enable.into());
-                self.mem_read.connect(pin, RegConnect::Enable.into());
+                self.reg_write.connect(pin.clone(), RegConnect::Enable);
+                self.wb_sel.connect(pin.clone(), RegConnect::Enable);
+                self.mem_write.connect(pin.clone(), RegConnect::Enable);
+                self.npc.connect(pin.clone(), RegConnect::Enable);
+                self.alu_res.connect(pin.clone(), RegConnect::Enable);
+                self.rs2_data.connect(pin.clone(), RegConnect::Enable);
+                self.rd.connect(pin.clone(), RegConnect::Enable);
+                self.mem_read.connect(pin, RegConnect::Enable);
             }
             Connect::Clear => {
-                self.reg_write
-                    .connect(pin.clone(), RegConnect::Clear.into());
-                self.wb_sel.connect(pin.clone(), RegConnect::Clear.into());
-                self.mem_write
-                    .connect(pin.clone(), RegConnect::Clear.into());
-                self.npc.connect(pin.clone(), RegConnect::Clear.into());
-                self.alu_res.connect(pin.clone(), RegConnect::Clear.into());
-                self.rs2_data.connect(pin.clone(), RegConnect::Clear.into());
-                self.rd.connect(pin.clone(), RegConnect::Clear.into());
-                self.mem_read.connect(pin, RegConnect::Clear.into());
+                self.reg_write.connect(pin.clone(), RegConnect::Clear);
+                self.wb_sel.connect(pin.clone(), RegConnect::Clear);
+                self.mem_write.connect(pin.clone(), RegConnect::Clear);
+                self.npc.connect(pin.clone(), RegConnect::Clear);
+                self.alu_res.connect(pin.clone(), RegConnect::Clear);
+                self.rs2_data.connect(pin.clone(), RegConnect::Clear);
+                self.rd.connect(pin.clone(), RegConnect::Clear);
+                self.mem_read.connect(pin, RegConnect::Clear);
             }
-            Connect::MemRead => self.mem_read.connect(pin, RegConnect::In.into()),
-            _ => panic!("Invalid id"),
+            Connect::MemRead => self.mem_read.connect(pin, RegConnect::In),
         }
     }
 }
 
+#[derive(Debug)]
 pub struct ExMem {
     pub reg_write: ControlRef,
     pub wb_sel: ControlRef,
@@ -153,19 +147,55 @@ impl Control for ExMem {
         self.mem_read.falling_edge();
         self.asm.falling_edge();
     }
-    #[cfg(debug_assertions)]
-    fn debug(&self) -> String {
-        format!(
-            "EX/MEM : {}\nREG_WRITE\t: {:8} WB_SEL\t: {:8} MEM_WRITE\t: {:8} NPC\t\t: {:8} ALU_RES\t: {:8}\nRS2_DATA\t: {:8} RD\t\t: {}",
-            self.asm.debug(),
-            self.reg_write.debug(),
-            self.wb_sel.debug(),
-            self.mem_write.debug(),
-            self.npc.debug(),
-            self.alu_res.debug(),
-            self.rs2_data.debug(),
-            self.rd.debug()
-        )
+    fn input(&self) -> Vec<(String, u32)> {
+        unimplemented!()
+    }
+    fn inout(&self) -> Vec<(String, u32, u32)> {
+        let mut res = Vec::new();
+        res.push((
+            "reg_write".to_string(),
+            self.reg_write.input()[0].1,
+            self.reg_write.output()[0].1,
+        ));
+        res.push((
+            "wb_sel".to_string(),
+            self.wb_sel.input()[0].1,
+            self.wb_sel.output()[0].1,
+        ));
+        res.push((
+            "mem_write".to_string(),
+            self.mem_write.input()[0].1,
+            self.mem_write.output()[0].1,
+        ));
+        res.push((
+            "mem_read".to_string(),
+            self.mem_read.input()[0].1,
+            self.mem_read.output()[0].1,
+        ));
+        res.push((
+            "npc".to_string(),
+            self.npc.input()[0].1,
+            self.npc.output()[0].1,
+        ));
+        res.push((
+            "alu_res".to_string(),
+            self.alu_res.input()[0].1,
+            self.alu_res.output()[0].1,
+        ));
+        res.push((
+            "rs2_data".to_string(),
+            self.rs2_data.input()[0].1,
+            self.rs2_data.output()[0].1,
+        ));
+        res.push((
+            "rd".to_string(),
+            self.rd.input()[0].1,
+            self.rd.output()[0].1,
+        ));
+        res
+    }
+    fn output(&self) -> Vec<(String, u32)> {
+        unimplemented!()
     }
 }
 

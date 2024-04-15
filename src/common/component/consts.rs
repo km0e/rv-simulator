@@ -3,6 +3,7 @@ use crate::common::build::*;
 pub enum Alloc {
     Out(usize),
 }
+#[allow(dead_code)]
 pub enum Connect {}
 #[derive(Default)]
 pub struct ConstsBuilder {
@@ -28,7 +29,7 @@ impl ConstsBuilder {
 }
 pub mod build {
     pub use super::Alloc as ConstsAlloc;
-    pub use super::Connect as ConstsConnect;
+
     pub use super::ConstsBuilder;
 }
 #[cfg(test)]

@@ -87,7 +87,6 @@ impl PortBuilder for ExStageBuilder {
             Alloc::BranchSel => self.branch.alloc(BranchAlloc::BK),
             Alloc::AluRes => self.alu.alloc(AluAlloc::Res),
             Alloc::Rs2Data => self.fwd_mux_2.alloc(MuxAlloc::Out),
-            _ => panic!("Invalid id"),
         }
     }
     fn connect(&mut self, pin: PortRef, id: Connect) {
@@ -116,7 +115,6 @@ impl PortBuilder for ExStageBuilder {
                 self.fwd_mux_1.connect(pin.clone(), MuxConnect::In(2));
                 self.fwd_mux_2.connect(pin, MuxConnect::In(2));
             }
-            _ => panic!("Invalid id"),
         }
     }
 }

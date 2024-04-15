@@ -1,11 +1,11 @@
 use crate::common::abi::*;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Bomb {}
 
 impl Port for Bomb {
     fn read(&self) -> u32 {
-        unimplemented!()
+        unreachable!("Bomb")
     }
 }
 

@@ -18,7 +18,7 @@ pub struct WbStageBuilder {
 impl PortBuilder for WbStageBuilder {
     type Alloc = Alloc;
     type Connect = Connect;
-    fn alloc(&mut self, id: Alloc) -> PortRef {
+    fn alloc(&mut self, _id: Alloc) -> PortRef {
         self.mux.alloc(MuxAlloc::Out)
     }
     fn connect(&mut self, pin: PortRef, id: Connect) {

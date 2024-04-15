@@ -37,7 +37,6 @@ impl PortBuilder for BranchBuilder {
     fn alloc(&mut self, id: Alloc) -> PortRef {
         match id {
             Alloc::BK => PortRef::from(self.inner.clone()),
-            _ => panic!("Invalid id"),
         }
     }
     fn connect(&mut self, pin: PortRef, id: Connect) {
@@ -47,12 +46,11 @@ impl PortBuilder for BranchBuilder {
             Connect::Op2 => self.inner.borrow_mut().op2 = Some(pin.clone()),
             Connect::Jal_ => self.inner.borrow_mut().jal_ = Some(pin.clone()),
             Connect::BranchSel => self.inner.borrow_mut().branchsel = Some(pin.clone()),
-            _ => panic!("Invalid id"),
         }
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Alu {
     pub op1: Option<PortRef>,
     pub op2: Option<PortRef>,

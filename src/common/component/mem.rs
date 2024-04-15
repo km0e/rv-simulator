@@ -3,13 +3,13 @@ use crate::common::abi::*;
 const PAGE_SIZE: usize = 4096;
 //pagefault will allocate a new page
 trait Page {
-    fn get_page(&mut self, page: u32) -> Option<&mut Box<dyn Page>> {
+    fn get_page(&mut self, _page: u32) -> Option<&mut Box<dyn Page>> {
         unreachable!("DataPage does not have subpage")
     }
-    fn read(&self, offset: u32, size: u32) -> Vec<u8> {
+    fn read(&self, _offset: u32, _size: u32) -> Vec<u8> {
         unreachable!("DataPage does not have subpage")
     }
-    fn write(&mut self, offset: u32, data: &[u8]) {
+    fn write(&mut self, _offset: u32, _data: &[u8]) {
         unreachable!("DataPage does not have subpage")
     }
 }
@@ -84,7 +84,6 @@ impl PortBuilder for MemBuilder {
             Self::Connect::Input => self.inner.borrow_mut().input = Some(pin),
             Self::Connect::Write => self.inner.borrow_mut().write = Some(pin),
             Self::Connect::Read => self.inner.borrow_mut().read = Some(pin),
-            _ => panic!("Invalid id"),
         }
     }
     // alloc the id for the memory
@@ -94,7 +93,7 @@ impl PortBuilder for MemBuilder {
         self.inner.clone().into_shared().into()
     }
 }
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Mem {
     pub id: usize,
     data: Vec<u8>,
@@ -186,9 +185,28 @@ impl Control for Mem {
             arr[addr + 3] = ((self.input_cache >> 24) & 0xff) as u8;
         }
     }
-    #[cfg(debug_assertions)]
-    fn debug(&self) -> String {
-        format!("mem: {:#X}", self.read())
+    fn input(&self) -> Vec<(String, u32)> {
+        let mut res = vec![];
+        res.push((
+            "in".to_string(),
+            self.input
+                .as_ref()
+                .expect("address is not connected")
+                .read(),
+        ));
+        res.push((
+            "addr".to_string(),
+            self.address
+                .as_ref()
+                .expect("address is not connected")
+                .read(),
+        ));
+        res
+    }
+    fn output(&self) -> Vec<(String, u32)> {
+        let mut res = vec![];
+        res.push(("out".to_string(), self.read()));
+        res
     }
 }
 pub mod build {
@@ -212,15 +230,12 @@ mod tests {
         ab.connect(constant.alloc(ConstsAlloc::Out(0)), AddConnect::In(0));
         let mut rb = RegBuilder::new(0);
         rb.connect(ab.alloc(AddAlloc::Out), RegConnect::In);
-        rb.connect(
-            constant.alloc(ConstsAlloc::Out(1)),
-            RegConnect::Enable.into(),
-        );
+        rb.connect(constant.alloc(ConstsAlloc::Out(1)), RegConnect::Enable);
         ab.connect(rb.alloc(RegAlloc::Out), AddConnect::In(0));
         tb.connect(rb.alloc(RegAlloc::Out), MemConnect::Address);
         tb.connect(constant.alloc(ConstsAlloc::Out(1)), MemConnect::Input);
         tb.connect(rb.alloc(RegAlloc::Out), MemConnect::Write);
-        tb.connect(constant.alloc(ConstsAlloc::Out(0)), MemConnect::Read.into());
+        tb.connect(constant.alloc(ConstsAlloc::Out(0)), MemConnect::Read);
         let t = tb.alloc(MemAlloc::Out);
         let tc = tb.build();
         let rc = rb.build();

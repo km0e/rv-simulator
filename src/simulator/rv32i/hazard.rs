@@ -56,7 +56,6 @@ impl PortBuilder for HazardBuilder {
             Alloc::PcEnable => PortRef::from(self.pc_enable.clone()),
             Alloc::IfIdEnable => PortRef::from(self.if_id_enable.clone()),
             Alloc::IdExClear => PortRef::from(self.id_ex_clear.clone()),
-            _ => panic!("Invalid id"),
         }
     }
     fn connect(&mut self, pin: PortRef, id: Connect) {
@@ -84,27 +83,17 @@ impl PortBuilder for HazardBuilder {
             Connect::NpcSel => {
                 self.id_ex_clear.borrow_mut().npc_sel = Some(pin.clone());
             }
-            _ => panic!("Invalid id"),
         }
     }
 }
+#[derive(Debug)]
 pub struct Hazard {
     pub pc_enable: ControlRef,
     pub if_id_enable: ControlRef,
     pub id_ex_clear: ControlRef,
 }
-impl Control for Hazard {
-    #[cfg(debug_assertions)]
-    fn debug(&self) -> String {
-        format!(
-            "Hazard\nPC_EN\t\t: {:8}IF_IF_EN\t: {:8}ID_EX_CLR\t: {:8}",
-            self.pc_enable.debug(),
-            self.if_id_enable.debug(),
-            self.id_ex_clear.debug(),
-        )
-    }
-}
-#[derive(Default)]
+impl Control for Hazard {}
+#[derive(Default, Debug)]
 pub struct PcEnable {
     pub load_signal: Option<PortRef>,
     pub ex_rd: Option<PortRef>,
@@ -112,12 +101,7 @@ pub struct PcEnable {
     pub id_rs2: Option<PortRef>,
 }
 
-impl Control for PcEnable {
-    #[cfg(debug_assertions)]
-    fn debug(&self) -> String {
-        format!("{:X}", self.read())
-    }
-}
+impl Control for PcEnable {}
 
 impl Port for PcEnable {
     fn read(&self) -> u32 {
@@ -153,19 +137,14 @@ impl Port for PcEnable {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct IfIdEnable {
     pub load_signal: Option<PortRef>,
     pub ex_rd: Option<PortRef>,
     pub id_rs1: Option<PortRef>,
     pub id_rs2: Option<PortRef>,
 }
-impl Control for IfIdEnable {
-    #[cfg(debug_assertions)]
-    fn debug(&self) -> String {
-        format!("{:X}", self.read())
-    }
-}
+impl Control for IfIdEnable {}
 impl Port for IfIdEnable {
     fn read(&self) -> u32 {
         let load_signal = match self.load_signal {
@@ -200,7 +179,7 @@ impl Port for IfIdEnable {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct IdExClear {
     pub load_signal: Option<PortRef>,
     pub npc_sel: Option<PortRef>,
@@ -208,12 +187,7 @@ pub struct IdExClear {
     pub id_rs1: Option<PortRef>,
     pub id_rs2: Option<PortRef>,
 }
-impl Control for IdExClear {
-    #[cfg(debug_assertions)]
-    fn debug(&self) -> String {
-        format!("{:X}", self.read())
-    }
-}
+impl Control for IdExClear {}
 impl Port for IdExClear {
     fn read(&self) -> u32 {
         let load_signal = match self.load_signal {
@@ -283,14 +257,11 @@ mod tests {
         consts.push(connect.id_rs1);
         consts.push(connect.id_rs2);
         consts.push(connect.npc_sel);
-        builder.connect(
-            consts.alloc(ConstsAlloc::Out(0)),
-            Connect::LoadSignal.into(),
-        );
-        builder.connect(consts.alloc(ConstsAlloc::Out(1)), Connect::ExRd.into());
-        builder.connect(consts.alloc(ConstsAlloc::Out(2)), Connect::IdRs1.into());
-        builder.connect(consts.alloc(ConstsAlloc::Out(3)), Connect::IdRs2.into());
-        builder.connect(consts.alloc(ConstsAlloc::Out(4)), Connect::NpcSel.into());
+        builder.connect(consts.alloc(ConstsAlloc::Out(0)), Connect::LoadSignal);
+        builder.connect(consts.alloc(ConstsAlloc::Out(1)), Connect::ExRd);
+        builder.connect(consts.alloc(ConstsAlloc::Out(2)), Connect::IdRs1);
+        builder.connect(consts.alloc(ConstsAlloc::Out(3)), Connect::IdRs2);
+        builder.connect(consts.alloc(ConstsAlloc::Out(4)), Connect::NpcSel);
         assert_eq!(pc_enable.read(), alloc.pc_enable);
         assert_eq!(if_id_enable.read(), alloc.if_id_enable);
         assert_eq!(id_ex_clear.read(), alloc.id_ex_clear);

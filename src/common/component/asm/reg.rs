@@ -49,6 +49,7 @@ impl AsmBuilder for AsmRegBuilder {
         self.inner = Some(ControlShared::new(AsmReg::new(pin)));
     }
 }
+#[derive(Debug)]
 pub struct AsmReg {
     pub prev: AsmPortRef,
     pub tmp: String,
@@ -70,9 +71,11 @@ impl Control for AsmReg {
     fn falling_edge(&mut self) {
         self.inst = self.tmp.clone();
     }
-    #[cfg(debug_assertions)]
-    fn debug(&self) -> String {
-        self.inst.clone()
+    fn input(&self) -> Vec<(String, u32)> {
+        unimplemented!("AsmReg: input")
+    }
+    fn output(&self) -> Vec<(String, u32)> {
+        unimplemented!("AsmReg: output")
     }
 }
 

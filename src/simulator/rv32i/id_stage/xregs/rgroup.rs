@@ -72,7 +72,6 @@ impl PortBuilder for RegGroupBuilder {
             Connect::Rd => self.rd = Some(pin),
             Connect::RdData => self.rd_data = Some(pin),
             Connect::Write => self.write = Some(pin),
-            _ => panic!("Invalid id"),
         }
     }
     fn alloc(&mut self, _id: Alloc) -> PortRef {
@@ -82,16 +81,16 @@ impl PortBuilder for RegGroupBuilder {
 impl IndexPortBuilder for RegGroupBuilder {
     type IndexAlloc = IndexAlloc;
     type IndexConnect = IndexConnect;
-    fn index_connect(&mut self, pin: IndexPortRef, id: IndexConnect) {
+    fn index_connect(&mut self, _pin: IndexPortRef, _id: IndexConnect) {
         unreachable!("RegGroup has no index output")
     }
     fn index_alloc(&mut self, id: IndexAlloc) -> IndexPortRef {
         match id {
             IndexAlloc::X => self.x.shared().into(),
-            _ => unreachable!("RegGroup has no index > 0 output"),
         }
     }
 }
+#[derive(Debug)]
 struct RegGroupControl {
     rd: PortRef,
     rd_data: PortRef,
@@ -105,12 +104,19 @@ impl Control for RegGroupControl {
         }
     }
     fn falling_edge(&mut self) {}
-    #[cfg(debug_assertions)]
-    fn debug(&self) -> String {
-        format!("regs: rd_data: {:#X}", self.rd_data.read())
+    fn input(&self) -> Vec<(String, u32)> {
+        vec![
+            ("rd".to_string(), self.rd.read()),
+            ("rd_data".to_string(), self.rd_data.read()),
+            ("write".to_string(), self.write.read()),
+        ]
+    }
+    fn output(&self) -> Vec<(String, u32)> {
+        vec![]
     }
 }
 
+#[derive(Debug)]
 struct RegGroup {
     x: [u32; 32],
 }

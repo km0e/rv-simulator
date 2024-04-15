@@ -19,8 +19,8 @@ impl PortBuilder for MuxBuilder {
             Self::Connect::Select => self.inner.borrow_mut().select = Some(pin),
             Self::Connect::In(c) => {
                 let input = &mut self.inner.borrow_mut().input;
-                if c > input.len() {
-                    input.resize(c + 1, PortRef::from(PortShared::new(Bomb::default())));
+                if c == input.len() {
+                    input.resize(c + 1, Bomb::default().into());
                 }
                 input[c] = pin;
             }
@@ -30,7 +30,7 @@ impl PortBuilder for MuxBuilder {
         PortRef::from(self.inner.clone())
     }
 }
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct Mux {
     pub input: Vec<PortRef>,
     pub select: Option<PortRef>, // select input
@@ -53,7 +53,7 @@ mod tests {
     #[test]
     fn test_mux() {
         let mut tb = MuxBuilder::default();
-        let mut t = tb.alloc(MuxAlloc::Out);
+        let t = tb.alloc(MuxAlloc::Out);
         let mut constant = ConstsBuilder::default();
         constant.push(1);
         constant.push(2);

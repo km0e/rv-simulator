@@ -55,25 +55,22 @@ impl IfStageBuilder {
         let mut if_npc_mux = MuxBuilder::default();
         // set up pc
         let mut if_pc = RegBuilder::new(entry);
-        if_pc.connect(if_npc_mux.alloc(MuxAlloc::Out), RegConnect::In.into());
+        if_pc.connect(if_npc_mux.alloc(MuxAlloc::Out), RegConnect::In);
         // set up add
         let mut if_add = AddBuilder::new();
         if_add.connect(if_pc_inc.alloc(MuxAlloc::Out), AddConnect::In(0));
         if_add.connect(if_pc.alloc(RegAlloc::Out), AddConnect::In(1));
         // connect npc and add
-        if_npc_mux.connect(if_add.alloc(AddAlloc::Out), MuxConnect::In(0).into());
+        if_npc_mux.connect(if_add.alloc(AddAlloc::Out), MuxConnect::In(0));
         // set up instruction memory
         let mut if_imem = MemBuilder::new(instruction_memory);
-        if_imem.connect(if_pc.alloc(RegAlloc::Out), MemConnect::Address.into());
-        if_imem.connect(consts.alloc(ConstsAlloc::Out(2)), MemConnect::Write.into());
-        if_imem.connect(consts.alloc(ConstsAlloc::Out(3)), MemConnect::Read.into());
+        if_imem.connect(if_pc.alloc(RegAlloc::Out), MemConnect::Address);
+        if_imem.connect(consts.alloc(ConstsAlloc::Out(2)), MemConnect::Write);
+        if_imem.connect(consts.alloc(ConstsAlloc::Out(3)), MemConnect::Read);
         //cache
         //asm
         let mut if_asm = AsmMemBuilder::new(asm_mem);
-        if_asm.connect(
-            if_pc.alloc(RegAlloc::Out.into()),
-            AsmConnect::Address.into(),
-        );
+        if_asm.connect(if_pc.alloc(RegAlloc::Out), AsmConnect::Address);
         // build if stage
         IfStageBuilder {
             npc_mux: if_npc_mux,
@@ -107,21 +104,20 @@ impl PortBuilder for IfStageBuilder {
     type Connect = Connect;
     fn alloc(&mut self, id: Alloc) -> PortRef {
         match id {
-            Alloc::Pc => self.pc.alloc(RegAlloc::Out.into()),
-            Alloc::Npc => self.add.alloc(AddAlloc::Out.into()),
-            Alloc::Imem => self.imem.alloc(MemAlloc::Out.into()),
-            _ => panic!("Invalid id"),
+            Alloc::Pc => self.pc.alloc(RegAlloc::Out),
+            Alloc::Npc => self.add.alloc(AddAlloc::Out),
+            Alloc::Imem => self.imem.alloc(MemAlloc::Out),
         }
     }
     fn connect(&mut self, pin: PortRef, id: Connect) {
         match id {
-            Connect::PcEnable => self.pc.connect(pin, RegConnect::Enable.into()),
-            Connect::NpcSel => self.npc_mux.connect(pin, MuxConnect::Select.into()),
-            Connect::Npc => self.npc_mux.connect(pin, MuxConnect::In(1).into()),
-            _ => panic!("Invalid id"),
+            Connect::PcEnable => self.pc.connect(pin, RegConnect::Enable),
+            Connect::NpcSel => self.npc_mux.connect(pin, MuxConnect::Select),
+            Connect::Npc => self.npc_mux.connect(pin, MuxConnect::In(1)),
         }
     }
 }
+#[derive(Debug)]
 pub struct IfStage {
     pub pc: ControlRef,
     pub imem: ControlRef,
@@ -137,14 +133,6 @@ impl Control for IfStage {
         self.pc.falling_edge();
         self.imem.falling_edge();
         self.asm.falling_edge();
-    }
-    #[cfg(debug_assertions)]
-    fn debug(&self) -> String {
-        format!(
-            "IfStage\npc: {}\nimem: {}",
-            self.pc.debug(),
-            self.imem.debug()
-        )
     }
 }
 
@@ -162,8 +150,8 @@ mod tests {
         ifb.npc_mux
             .connect(consts.alloc(ConstsAlloc::Out(0)), MuxConnect::Select);
         ifb.imem
-            .connect(consts.alloc(ConstsAlloc::Out(0)), MemConnect::Write.into());
-        ifb.connect(consts.alloc(ConstsAlloc::Out(1)), Connect::PcEnable.into());
+            .connect(consts.alloc(ConstsAlloc::Out(0)), MemConnect::Write);
+        ifb.connect(consts.alloc(ConstsAlloc::Out(1)), Connect::PcEnable);
         let pc = ifb.pc.alloc(RegAlloc::Out);
         let npc = ifb.add.alloc(AddAlloc::Out);
         let imem = ifb.imem.alloc(MemAlloc::Out);
