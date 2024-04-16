@@ -62,10 +62,11 @@ impl IfStageBuilder {
         // connect npc and add
         if_npc_mux.connect(if_add.alloc(AddAlloc::Out), MuxConnect::In(0));
         // set up instruction memory
-        let mut if_imem = MemBuilder::new(instruction_memory);
-        if_imem.connect(if_pc.alloc(RegAlloc::Out), MemConnect::Address);
-        if_imem.connect(consts.alloc(ConstsAlloc::Out(2)), MemConnect::Write);
-        if_imem.connect(consts.alloc(ConstsAlloc::Out(3)), MemConnect::Read);
+        let mut if_imem = MemBuilder::with_data(0, instruction_memory);
+        if_imem.connect(if_pc.alloc(RegAlloc::Out), MemConnect::Addr);
+        if_imem.connect(consts.alloc(ConstsAlloc::Out(2)), MemConnect::WriteEn);
+        if_imem.connect(consts.alloc(ConstsAlloc::Out(3)), MemConnect::ReadEn);
+        if_imem.connect(consts.alloc(ConstsAlloc::Out(3)), MemConnect::Data);
         //cache
         // build if stage
         IfStageBuilder {
@@ -133,7 +134,7 @@ mod tests {
         ifb.npc_mux
             .connect(consts.alloc(ConstsAlloc::Out(0)), MuxConnect::Select);
         ifb.imem
-            .connect(consts.alloc(ConstsAlloc::Out(0)), MemConnect::Write);
+            .connect(consts.alloc(ConstsAlloc::Out(0)), MemConnect::WriteEn);
         ifb.connect(consts.alloc(ConstsAlloc::Out(1)), Connect::PcEnable);
         let pc = ifb.pc.alloc(RegAlloc::Out);
         let npc = ifb.add.alloc(AddAlloc::Out);

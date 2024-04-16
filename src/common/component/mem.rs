@@ -1,77 +1,64 @@
+use std::{cell::RefCell, collections::HashMap};
+
 use crate::common::abi::*;
-
-const PAGE_SIZE: usize = 4096;
-//pagefault will allocate a new page
-trait Page {
-    fn get_page(&mut self, _page: u32) -> Option<&mut Box<dyn Page>> {
-        unreachable!("DataPage does not have subpage")
-    }
-    fn read(&self, _offset: u32, _size: u32) -> Vec<u8> {
-        unreachable!("DataPage does not have subpage")
-    }
-    fn write(&mut self, _offset: u32, _data: &[u8]) {
-        unreachable!("DataPage does not have subpage")
-    }
-}
-
-struct DataPage {
-    data: [u8; PAGE_SIZE],
-}
-impl Page for DataPage {
-    fn read(&self, offset: u32, size: u32) -> Vec<u8> {
-        self.data[offset as usize..(offset + size) as usize].to_vec()
-    }
-    fn write(&mut self, offset: u32, data: &[u8]) {
-        self.data[offset as usize..offset as usize + data.len()].copy_from_slice(data);
-    }
-}
-pub struct DirPage {
-    pub pd2pg: [Option<Box<dyn Page>>; 512],
-}
-const EMPTY_PAGE: std::option::Option<std::boxed::Box<(dyn Page + 'static)>> = None;
-impl Default for DirPage {
-    fn default() -> Self {
-        Self {
-            pd2pg: [EMPTY_PAGE; 512],
-        }
-    }
-}
-impl Page for DirPage {
-    fn get_page(&mut self, page: u32) -> Option<&mut Box<dyn Page>> {
-        if self.pd2pg[page as usize].is_none() {
-            self.pd2pg[page as usize] = Some(Box::new(DataPage {
-                data: [0; PAGE_SIZE],
-            }));
-        }
-        self.pd2pg[page as usize].as_mut()
-    }
-}
 pub enum Alloc {
     Out = 0,
 }
 pub enum Connect {
-    Address = 0,
-    Input = 1,
-    Write = 2,
-    Read = 3,
+    Addr = 0,
+    Data = 1,
+    WriteEn = 2,
+    ReadEn = 3,
 }
-#[derive(Default)]
 pub struct MemBuilder {
-    pub inner: ControlShared<Mem>,
+    write_en: Option<PortRef>,
+    read_en: Option<PortRef>,
+    addr: Option<PortRef>,
+    write_data: Option<PortRef>,
+    mem: IndexPortShared<Mem>,
+    reader: Option<MemReader>,
 }
 impl MemBuilder {
-    pub fn new(memory: Vec<u8>) -> Self {
+    pub fn new() -> Self {
         Self {
-            inner: ControlShared::new(Mem {
-                data: memory,
-                ..Default::default()
+            mem: IndexPortShared::new(Mem {
+                data: HashMap::new(),
             }),
+            write_en: None,
+            read_en: None,
+            addr: None,
+            write_data: None,
+            reader: None,
         }
+    }
+    pub fn with_data(addr: usize, data: Vec<u8>) -> Self {
+        Self {
+            mem: IndexPortShared::new(Mem::with_data(addr, data)),
+            write_en: None,
+            read_en: None,
+            addr: None,
+            write_data: None,
+            reader: None,
+        }
+    }
+}
+impl Default for MemBuilder {
+    fn default() -> Self {
+        Self::new()
     }
 }
 impl ControlBuilder for MemBuilder {
     fn build(self) -> ControlRef {
-        self.inner.into_shared().into()
+        ControlShared::new(MemWriter {
+            write_en: self.write_en.expect("write enable is not connected"),
+            write_en_cache: 0,
+            addr: self.addr.expect("address is not connected"),
+            addr_cache: 0,
+            write_data: self.write_data.expect("write data is not connected"),
+            write_data_cache: 0,
+            mem: self.mem,
+        })
+        .into()
     }
 }
 impl PortBuilder for MemBuilder {
@@ -80,134 +67,118 @@ impl PortBuilder for MemBuilder {
     // Connect the address and input pin
     fn connect(&mut self, pin: PortRef, id: Self::Connect) {
         match id {
-            Self::Connect::Address => self.inner.borrow_mut().address = Some(pin),
-            Self::Connect::Input => self.inner.borrow_mut().input = Some(pin),
-            Self::Connect::Write => self.inner.borrow_mut().write = Some(pin),
-            Self::Connect::Read => self.inner.borrow_mut().read = Some(pin),
+            Self::Connect::Addr => self.addr = Some(pin),
+            Self::Connect::Data => self.write_data = Some(pin),
+            Self::Connect::WriteEn => self.write_en = Some(pin),
+            Self::Connect::ReadEn => self.read_en = Some(pin),
         }
     }
     fn alloc(&mut self, _: Self::Alloc) -> PortRef {
-        self.inner.clone().into_shared().into()
+        match self.reader {
+            Some(ref mut reader) => reader.clone().into(),
+            None => {
+                let reader = MemReader {
+                    read_en: self.read_en.clone().expect("read enable is not connected"),
+                    addr: self.addr.clone().expect("address is not connected"),
+                    mem: self.mem.clone().into(),
+                };
+                self.reader = Some(reader.clone());
+                reader.into()
+            }
+        }
     }
 }
-#[derive(Default, Debug)]
+const PAGE_SIZE: usize = 0x1000;
+
+#[derive(Debug)]
 pub struct Mem {
-    pub id: usize,
-    data: Vec<u8>,
-    stack: Vec<u8>,
-    pub input: Option<PortRef>,
-    pub input_cache: u32,
-    pub write: Option<PortRef>,
-    pub write_cache: u32,
-    pub read: Option<PortRef>,
-    pub address: Option<PortRef>,
-    pub address_cache: usize,
+    data: HashMap<usize, [u8; PAGE_SIZE]>,
 }
-const STACK_ADDR: u32 = 0x7FFFFFF0;
-const STACK_SIZE: u32 = 0xFFFF;
 impl Mem {
-    // pub fn new() -> Self {
-    //     let mut data = DirPage::default();
-    //     data.pd2pg.iter_mut().for_each(|x| {
-    //         *x = Some(Box::new(DirPage::default()));
-    //     });
-    //     Self {
-    //         data,
-    //         ..Default::default()
-    //     }
-    // }
-    pub fn store(&mut self, data: Vec<u8>) {
-        self.data = data;
+    pub fn with_data(addr: usize, data: Vec<u8>) -> Self {
+        let mut mem = HashMap::new();
+        let mut start = 0;
+        while start + PAGE_SIZE < data.len() {
+            let mut page = [0; PAGE_SIZE];
+            page.copy_from_slice(&data[start..start + PAGE_SIZE]);
+            mem.insert(addr + start / PAGE_SIZE, page);
+            start += PAGE_SIZE;
+        }
+        let mut page = [0; PAGE_SIZE];
+        page[..data.len() - start].copy_from_slice(&data[start..]);
+        mem.insert(addr + start / PAGE_SIZE, page);
+
+        Self { data: mem }
     }
 }
-impl Port for Mem {
-    fn read(&self) -> u32 {
-        if self
-            .read
-            .as_ref()
-            .expect("read enable is not connected")
-            .read()
-            != 1
-        {
-            return 0;
-        }
-        let addr = self
-            .address
-            .as_ref()
-            .expect("address is not connected")
-            .read() as usize;
-        let (arr, addr) = if addr > STACK_ADDR as usize {
-            (&self.stack, addr - STACK_ADDR as usize)
+impl Mem {
+    pub fn write(&mut self, addr: usize, data: u32) {
+        let page = addr / PAGE_SIZE;
+        let offset = addr % PAGE_SIZE;
+        let page = self.data.entry(page).or_insert_with(|| [0; PAGE_SIZE]);
+        page[offset] = (data & 0xff) as u8;
+        page[offset + 1] = ((data >> 8) & 0xff) as u8;
+        page[offset + 2] = ((data >> 16) & 0xff) as u8;
+        page[offset + 3] = ((data >> 24) & 0xff) as u8;
+    }
+}
+impl IndexPort for Mem {
+    fn read(&self, addr: usize) -> u32 {
+        let page = addr / PAGE_SIZE;
+        let offset = addr % PAGE_SIZE;
+        if let Some(page) = self.data.get(&page) {
+            u32::from_ne_bytes([
+                page[offset],
+                page[offset + 1],
+                page[offset + 2],
+                page[offset + 3],
+            ])
         } else {
-            (&self.data, addr)
-        };
-        if addr + 4 > arr.len() {
-            return 0;
+            0
         }
-        u32::from_ne_bytes([arr[addr], arr[addr + 1], arr[addr + 2], arr[addr + 3]])
     }
 }
-impl Control for Mem {
-    fn rasing_edge(&mut self) {
-        if self
-            .write
-            .as_ref()
-            .expect("write enable is not connected")
-            .read()
-            != 1
-        {
-            self.write_cache = 0;
-            return;
+#[derive(Debug, Clone)]
+pub struct MemReader {
+    read_en: PortRef,
+    addr: PortRef,
+    mem: IndexPortRef,
+}
+impl Port for MemReader {
+    fn read(&self) -> u32 {
+        if self.read_en.read() == 1 {
+            self.mem.read(self.addr.read() as usize)
+        } else {
+            0
         }
-        self.address_cache = self
-            .address
-            .as_ref()
-            .expect("address is not connected")
-            .read() as usize;
-        self.input_cache = self.input.as_ref().expect("input is not connected").read();
-        self.write_cache = 1;
+    }
+}
+#[derive(Debug)]
+pub struct MemWriter {
+    write_en: PortRef,
+    write_en_cache: u32,
+    addr: PortRef,
+    addr_cache: u32,
+    write_data: PortRef,
+    write_data_cache: u32,
+    mem: IndexPortShared<Mem>,
+}
+impl Control for MemWriter {
+    fn rasing_edge(&mut self) {
+        if self.write_en.read() == 1 {
+            self.write_en_cache = 1;
+            self.addr_cache = self.addr.read();
+            self.write_data_cache = self.write_data.read();
+        } else {
+            self.write_en_cache = 0;
+        }
     }
     fn falling_edge(&mut self) {
-        if self.write_cache == 1 {
-            let (arr, addr) = if self.address_cache > (STACK_ADDR - STACK_SIZE) as usize {
-                (
-                    &mut self.stack,
-                    self.address_cache - (STACK_ADDR - STACK_SIZE) as usize,
-                )
-            } else {
-                (&mut self.data, self.address_cache)
-            };
-            if addr + 4 > arr.len() {
-                arr.resize(addr + 4, 0);
-            }
-            arr[addr] = (self.input_cache & 0xff) as u8;
-            arr[addr + 1] = ((self.input_cache >> 8) & 0xff) as u8;
-            arr[addr + 2] = ((self.input_cache >> 16) & 0xff) as u8;
-            arr[addr + 3] = ((self.input_cache >> 24) & 0xff) as u8;
+        if self.write_en_cache == 1 {
+            self.mem
+                .borrow_mut()
+                .write(self.addr_cache as usize, self.write_data_cache);
         }
-    }
-    fn input(&self) -> Vec<(String, u32)> {
-        let mut res = vec![];
-        res.push((
-            "in".to_string(),
-            self.input
-                .as_ref()
-                .expect("address is not connected")
-                .read(),
-        ));
-        res.push((
-            "addr".to_string(),
-            self.address
-                .as_ref()
-                .expect("address is not connected")
-                .read(),
-        ));
-        res
-    }
-    fn output(&self) -> Vec<(String, u32)> {
-        let mut res = vec![];
-        res.push(("out".to_string(), self.read()));
-        res
     }
 }
 pub mod build {
@@ -222,7 +193,7 @@ mod tests {
 
     #[test]
     fn test_mem() {
-        let mut tb = MemBuilder::new(b"12345678".to_vec());
+        let mut tb = MemBuilder::with_data(0, b"12345678".to_vec());
         let mut constant = ConstsBuilder::default();
         constant.push(1);
         constant.push(1);
@@ -233,10 +204,10 @@ mod tests {
         rb.connect(ab.alloc(AddAlloc::Out), RegConnect::In);
         rb.connect(constant.alloc(ConstsAlloc::Out(1)), RegConnect::Enable);
         ab.connect(rb.alloc(RegAlloc::Out), AddConnect::In(0));
-        tb.connect(rb.alloc(RegAlloc::Out), MemConnect::Address);
-        tb.connect(constant.alloc(ConstsAlloc::Out(1)), MemConnect::Input);
-        tb.connect(rb.alloc(RegAlloc::Out), MemConnect::Write);
-        tb.connect(constant.alloc(ConstsAlloc::Out(0)), MemConnect::Read);
+        tb.connect(rb.alloc(RegAlloc::Out), MemConnect::Addr);
+        tb.connect(constant.alloc(ConstsAlloc::Out(1)), MemConnect::Data);
+        tb.connect(rb.alloc(RegAlloc::Out), MemConnect::WriteEn);
+        tb.connect(constant.alloc(ConstsAlloc::Out(0)), MemConnect::ReadEn);
         let t = tb.alloc(MemAlloc::Out);
         let tc = tb.build();
         let rc = rb.build();
@@ -256,15 +227,15 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_mem_panic() {
-        let mut tb = MemBuilder::default();
+        let mut tb = MemBuilder::with_data(0, vec![]);
         let mut constant = ConstsBuilder::default();
         constant.push(1);
         constant.push(2);
         constant.push(3);
-        tb.connect(constant.alloc(ConstsAlloc::Out(0)), MemConnect::Address);
-        tb.connect(constant.alloc(ConstsAlloc::Out(1)), MemConnect::Input);
-        tb.connect(constant.alloc(ConstsAlloc::Out(2)), MemConnect::Write);
-        tb.connect(constant.alloc(ConstsAlloc::Out(2)), MemConnect::Read);
-        tb.connect(constant.alloc(ConstsAlloc::Out(2)), MemConnect::Read);
+        tb.connect(constant.alloc(ConstsAlloc::Out(0)), MemConnect::Addr);
+        tb.connect(constant.alloc(ConstsAlloc::Out(1)), MemConnect::Data);
+        tb.connect(constant.alloc(ConstsAlloc::Out(2)), MemConnect::WriteEn);
+        tb.connect(constant.alloc(ConstsAlloc::Out(2)), MemConnect::ReadEn);
+        tb.connect(constant.alloc(ConstsAlloc::Out(2)), MemConnect::ReadEn);
     }
 }

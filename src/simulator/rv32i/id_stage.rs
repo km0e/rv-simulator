@@ -60,24 +60,11 @@ pub struct IdStageBuilder {
 }
 impl IdStageBuilder {
     pub fn new(esp: u32) -> Self {
-        // add id stage
-        // set up decode
-        let mut id_decode = DecodeBuilder::new();
-        // set up imm
-        let mut id_imm = ImmBuilder::default();
-        id_imm.connect(id_decode.alloc(DecodeAlloc::Opcode), ImmConnect::Opcode);
-        // set up regs
-        let mut id_regs = XregsBuilder::new(esp);
-        id_regs.connect(id_decode.alloc(DecodeAlloc::Rs1), XregsConnect::Rs1);
-        id_regs.connect(id_decode.alloc(DecodeAlloc::Rs2), XregsConnect::Rs2);
-        // set up control
-        let mut id_control = CtrlSigBuilder::new();
-        id_control.connect(id_decode.alloc(DecodeAlloc::Opcode), CtrlConnect::Opcode);
         IdStageBuilder {
-            control: id_control,
-            decode: id_decode,
-            imm: id_imm,
-            xregs: id_regs,
+            control: CtrlSigBuilder::new(),
+            decode: DecodeBuilder::new(),
+            imm: ImmBuilder::default(),
+            xregs: XregsBuilder::new(esp),
         }
     }
 }
@@ -109,6 +96,17 @@ impl PortBuilder for IdStageBuilder {
         match id {
             Connect::Inst => {
                 self.decode.connect(pin.clone(), DecodeConnect::Inst);
+                // set up control
+                self.control
+                    .connect(self.decode.alloc(DecodeAlloc::Opcode), CtrlConnect::Opcode);
+                self.imm
+                    .connect(self.decode.alloc(DecodeAlloc::Opcode), ImmConnect::Opcode);
+                // set up regs
+                self.xregs
+                    .connect(self.decode.alloc(DecodeAlloc::Rs1), XregsConnect::Rs1);
+                self.xregs
+                    .connect(self.decode.alloc(DecodeAlloc::Rs2), XregsConnect::Rs2);
+                // set up imm
                 self.imm.connect(pin.clone(), ImmConnect::Inst);
             }
             Connect::Rd => self.xregs.connect(pin.clone(), XregsConnect::Rd),

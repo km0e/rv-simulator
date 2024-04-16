@@ -115,10 +115,10 @@ impl Rv32iBuilder {
         ex_mem.connect(id_ex.alloc(IdExAlloc::Rd), ExMemConnect::Rd);
         ex_mem.connect(id_ex.alloc(IdExAlloc::LoadSignal), ExMemConnect::MemRead);
         //set up mem stage
-        mem_stage.connect(ex_mem.alloc(ExMemAlloc::MemWrite), MemStageConnect::Write);
-        mem_stage.connect(ex_mem.alloc(ExMemAlloc::AluRes), MemStageConnect::Address);
-        mem_stage.connect(ex_mem.alloc(ExMemAlloc::Rs2Data), MemStageConnect::Input);
-        mem_stage.connect(ex_mem.alloc(ExMemAlloc::MemRead), MemStageConnect::Read);
+        mem_stage.connect(ex_mem.alloc(ExMemAlloc::MemWrite), MemStageConnect::WriteEn);
+        mem_stage.connect(ex_mem.alloc(ExMemAlloc::AluRes), MemStageConnect::Addr);
+        mem_stage.connect(ex_mem.alloc(ExMemAlloc::Rs2Data), MemStageConnect::Data);
+        mem_stage.connect(ex_mem.alloc(ExMemAlloc::MemRead), MemStageConnect::ReadEn);
         //set up mem-wb register
         mem_wb.connect(ex_mem.alloc(ExMemAlloc::RegWrite), MemWbConnect::RegWrite);
         mem_wb.connect(ex_mem.alloc(ExMemAlloc::WbSel), MemWbConnect::WbSel);
@@ -134,7 +134,7 @@ impl Rv32iBuilder {
         //set up hazard unit
         hazard.connect(id_stage.alloc(IdAlloc::Rs1), HazardConnect::IdRs1);
         hazard.connect(id_stage.alloc(IdAlloc::Rs2), HazardConnect::IdRs2);
-        hazard.connect(ex_mem.alloc(ExMemAlloc::Rd), HazardConnect::ExRd);
+        hazard.connect(id_ex.alloc(IdExAlloc::Rd), HazardConnect::ExRd);
         hazard.connect(
             id_ex.alloc(IdExAlloc::LoadSignal),
             HazardConnect::LoadSignal,
