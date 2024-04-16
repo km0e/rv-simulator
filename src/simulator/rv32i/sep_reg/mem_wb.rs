@@ -29,18 +29,6 @@ pub struct MemWbBuilder {
     pub alu_res: RegBuilder,
     pub mem_data: RegBuilder,
     pub rd: RegBuilder,
-    pub asm: AsmRegBuilder,
-}
-impl AsmBuilder for MemWbBuilder {
-    fn asm_connect(&mut self, pin: AsmPortRef, id: usize) {
-        match id {
-            0 => self.asm.asm_connect(pin, AsmRegConnect::In.into()),
-            _ => panic!("MemWbBuilder: don't need to asm connect"),
-        }
-    }
-    fn asm_alloc(&self, id: usize) -> AsmPortRef {
-        self.asm.asm_alloc(id)
-    }
 }
 impl ControlBuilder for MemWbBuilder {
     fn build(self) -> ControlRef {
@@ -51,7 +39,6 @@ impl ControlBuilder for MemWbBuilder {
             alu_res: self.alu_res.build(),
             mem_data: self.mem_data.build(),
             rd: self.rd.build(),
-            asm: self.asm.build(),
         }
         .into()
     }
@@ -105,7 +92,6 @@ pub struct MemWb {
     pub alu_res: ControlRef,
     pub mem_data: ControlRef,
     pub rd: ControlRef,
-    pub asm: ControlRef,
 }
 
 impl Control for MemWb {
@@ -116,7 +102,6 @@ impl Control for MemWb {
         self.alu_res.rasing_edge();
         self.mem_data.rasing_edge();
         self.rd.rasing_edge();
-        self.asm.rasing_edge();
     }
     fn falling_edge(&mut self) {
         self.reg_write.falling_edge();
@@ -125,7 +110,6 @@ impl Control for MemWb {
         self.alu_res.falling_edge();
         self.mem_data.falling_edge();
         self.rd.falling_edge();
-        self.asm.falling_edge();
     }
     fn inout(&self) -> Vec<(String, u32, u32)> {
         let mut res = Vec::new();

@@ -26,14 +26,19 @@ impl From<Connect> for usize {
 }
 #[derive(Default)]
 pub struct AluBuilder {
-    inner: PortShared<Alu>,
+    inner: ControlShared<Alu>,
+}
+impl ControlBuilder for AluBuilder {
+    fn build(self) -> ControlRef {
+        self.inner.into_shared().into()
+    }
 }
 impl PortBuilder for AluBuilder {
     type Alloc = Alloc;
     type Connect = Connect;
     fn alloc(&mut self, id: Self::Alloc) -> PortRef {
         match id {
-            Self::Alloc::Res => PortRef::from(self.inner.clone()),
+            Self::Alloc::Res => self.inner.clone().into_shared().into(),
         }
     }
     fn connect(&mut self, pin: PortRef, id: Self::Connect) {
@@ -51,7 +56,11 @@ pub struct Alu {
     pub input2: Option<PortRef>,
     pub alu_ctl: Option<PortRef>,
 }
-
+impl Control for Alu {
+    fn output(&self) -> Vec<(String, u32)> {
+        vec![("res".to_string(), self.read())]
+    }
+}
 impl Port for Alu {
     fn read(&self) -> u32 {
         let u1 = self.input1.as_ref().unwrap().read();

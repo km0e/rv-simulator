@@ -35,10 +35,9 @@ pub struct IfStageBuilder {
     pub pc: RegBuilder,
     pub add: AddBuilder,
     pub imem: MemBuilder,
-    pub asm: AsmMemBuilder,
 }
 impl IfStageBuilder {
-    pub fn new(entry: u32, instruction_memory: Vec<u8>, asm_mem: Vec<String>) -> Self {
+    pub fn new(entry: u32, instruction_memory: Vec<u8>) -> Self {
         // add if stage
         // set up consts
         let mut consts = ConstsBuilder::default();
@@ -68,25 +67,13 @@ impl IfStageBuilder {
         if_imem.connect(consts.alloc(ConstsAlloc::Out(2)), MemConnect::Write);
         if_imem.connect(consts.alloc(ConstsAlloc::Out(3)), MemConnect::Read);
         //cache
-        //asm
-        let mut if_asm = AsmMemBuilder::new(asm_mem);
-        if_asm.connect(if_pc.alloc(RegAlloc::Out), AsmConnect::Address);
         // build if stage
         IfStageBuilder {
             npc_mux: if_npc_mux,
             pc: if_pc,
             add: if_add,
             imem: if_imem,
-            asm: if_asm,
         }
-    }
-}
-impl AsmBuilder for IfStageBuilder {
-    fn asm_alloc(&self, id: usize) -> AsmPortRef {
-        self.asm.asm_alloc(id)
-    }
-    fn asm_connect(&mut self, _pin: AsmPortRef, _id: usize) {
-        panic!("IfStageBuilder: don't need to asm connect")
     }
 }
 impl ControlBuilder for IfStageBuilder {
@@ -94,7 +81,6 @@ impl ControlBuilder for IfStageBuilder {
         IfStage {
             pc: self.pc.build(),
             imem: self.imem.build(),
-            asm: self.asm.build(),
         }
         .into()
     }
@@ -121,18 +107,15 @@ impl PortBuilder for IfStageBuilder {
 pub struct IfStage {
     pub pc: ControlRef,
     pub imem: ControlRef,
-    pub asm: ControlRef,
 }
 impl Control for IfStage {
     fn rasing_edge(&mut self) {
         self.pc.rasing_edge();
         self.imem.rasing_edge();
-        self.asm.rasing_edge();
     }
     fn falling_edge(&mut self) {
         self.pc.falling_edge();
         self.imem.falling_edge();
-        self.asm.falling_edge();
     }
 }
 
@@ -142,7 +125,7 @@ mod tests {
     #[test]
     fn test_generate_if() {
         let text = b"abcdefgh".to_vec();
-        let mut ifb = IfStageBuilder::new(0, text.to_vec(), vec![]);
+        let mut ifb = IfStageBuilder::new(0, text.to_vec());
         let mut consts = ConstsBuilder::default();
         consts = ConstsBuilder::default();
         consts.push(0);

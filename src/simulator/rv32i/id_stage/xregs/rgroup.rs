@@ -57,7 +57,9 @@ impl ControlBuilder for RegGroupBuilder {
     fn build(self) -> ControlRef {
         ControlShared::new(RegGroupControl {
             rd: self.rd.unwrap(),
+            rd_cache: 0,
             rd_data: self.rd_data.unwrap(),
+            rd_data_cache: 0,
             write: self.write.unwrap(),
             x: self.x.clone(),
         })
@@ -93,17 +95,26 @@ impl IndexPortBuilder for RegGroupBuilder {
 #[derive(Debug)]
 struct RegGroupControl {
     rd: PortRef,
+    rd_cache: u32,
     rd_data: PortRef,
+    rd_data_cache: u32,
     write: PortRef,
     x: IndexPortShared<RegGroup>,
 }
 impl Control for RegGroupControl {
     fn rasing_edge(&mut self) {
-        if self.write.read() == 1 {
-            self.x.borrow_mut().x[self.rd.read() as usize] = self.rd_data.read();
+        if self.write.read() != 1 {
+            self.rd_cache = 0;
+            return;
+        }
+        self.rd_cache = self.rd.read();
+        self.rd_data_cache = self.rd_data.read();
+    }
+    fn falling_edge(&mut self) {
+        if self.rd_cache != 0 {
+            self.x.borrow_mut().x[self.rd_cache as usize] = self.rd_data_cache;
         }
     }
-    fn falling_edge(&mut self) {}
     fn input(&self) -> Vec<(String, u32)> {
         vec![
             ("rd".to_string(), self.rd.read()),

@@ -45,7 +45,7 @@ impl Port for Imm {
             }
         };
         let inst = inst as i32;
-        (match input & 0b1111111 {
+        let inst = match input & 0b1111111 {
             0b001_0011 | 0b000_0011 | 0b110_0111 => inst >> 20,
             0b010_0011 => ((inst >> 7) & 0b11111) | (((inst as i32) >> 25) << 5),
             0b110_0011 => {
@@ -61,7 +61,8 @@ impl Port for Imm {
                     | ((inst >> 10) & 0b100000000000000000000)
             }
             _ => inst >> 12,
-        }) as u32
+        };
+        inst as u32
     }
 }
 pub mod build {}

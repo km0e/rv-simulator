@@ -11,6 +11,11 @@ pub enum Connect {
 pub struct MuxBuilder {
     pub inner: PortShared<Mux>,
 }
+impl ControlBuilder for MuxBuilder {
+    fn build(self) -> ControlRef {
+        self.inner.into_shared().into()
+    }
+}
 impl PortBuilder for MuxBuilder {
     type Alloc = Alloc;
     type Connect = Connect;
@@ -39,6 +44,11 @@ impl Port for Mux {
     fn read(&self) -> u32 {
         let id = self.select.as_ref().unwrap().read();
         self.input[id as usize].read()
+    }
+}
+impl Control for Mux {
+    fn output(&self) -> Vec<(String, u32)> {
+        vec![("mux".to_string(), self.read())]
     }
 }
 pub mod build {

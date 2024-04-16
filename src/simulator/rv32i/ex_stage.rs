@@ -79,6 +79,20 @@ impl Default for ExStageBuilder {
         Self::new()
     }
 }
+impl ControlBuilder for ExStageBuilder {
+    fn build(self) -> ControlRef {
+        Exstage {
+            fwd_mux_1: self.fwd_mux_1.build(),
+            fwd_mux_2: self.fwd_mux_2.build(),
+            pc_sel: self.pc_sel.build(),
+            imm_sel: self.imm_sel.build(),
+            branch: self.branch.build(),
+            forward: self.forward.build(),
+            alu: self.alu.build(),
+        }
+        .into()
+    }
+}
 impl PortBuilder for ExStageBuilder {
     type Alloc = Alloc;
     type Connect = Connect;
@@ -118,7 +132,27 @@ impl PortBuilder for ExStageBuilder {
         }
     }
 }
-
+#[derive(Debug)]
+pub struct Exstage {
+    pub fwd_mux_1: ControlRef,
+    pub fwd_mux_2: ControlRef,
+    pub pc_sel: ControlRef,
+    pub imm_sel: ControlRef,
+    pub branch: ControlRef,
+    pub forward: ControlRef,
+    pub alu: ControlRef,
+}
+impl Control for Exstage {
+    fn output(&self) -> Vec<(String, u32)> {
+        let mut res = Vec::new();
+        res.extend(self.branch.output());
+        res.extend(self.alu.output());
+        res.extend(self.forward.output());
+        res.extend(self.fwd_mux_1.output());
+        res.extend(self.fwd_mux_2.output());
+        res
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -8,7 +8,7 @@ pub trait ControlBuilder {
     fn build(self) -> ControlRef;
 }
 #[derive(Default)]
-pub struct ControlShared<T: 'static + Control>(Shared<T>);
+pub struct ControlShared<T: 'static + Control>(pub Shared<T>);
 impl<T: 'static + Control> ControlShared<T> {
     pub fn new(control: T) -> Self {
         Self(control.into())

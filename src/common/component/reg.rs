@@ -70,6 +70,7 @@ impl Control for Reg {
         if let Some(clear) = self.clear.as_ref() {
             if clear.read() == 1 {
                 self.output.borrow_mut().data = 0;
+                return;
             }
         }
         if let Some(enable) = self.enable.as_ref() {

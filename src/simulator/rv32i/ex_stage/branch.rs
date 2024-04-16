@@ -2,13 +2,6 @@ use crate::common::abi::*;
 pub enum Alloc {
     BK = 0,
 }
-impl From<Alloc> for usize {
-    fn from(alloc: Alloc) -> usize {
-        match alloc {
-            Alloc::BK => 0,
-        }
-    }
-}
 pub enum Connect {
     BranchType = 0,
     Op1 = 1,
@@ -16,27 +9,21 @@ pub enum Connect {
     Jal_ = 3,
     BranchSel = 4,
 }
-impl From<Connect> for usize {
-    fn from(alloc: Connect) -> usize {
-        match alloc {
-            Connect::BranchType => 0,
-            Connect::Op1 => 1,
-            Connect::Op2 => 2,
-            Connect::Jal_ => 3,
-            Connect::BranchSel => 4,
-        }
-    }
-}
 #[derive(Default)]
 pub struct BranchBuilder {
-    inner: PortShared<Alu>,
+    inner: ControlShared<Branch>,
+}
+impl ControlBuilder for BranchBuilder {
+    fn build(self) -> ControlRef {
+        self.inner.into_shared().into()
+    }
 }
 impl PortBuilder for BranchBuilder {
     type Alloc = Alloc;
     type Connect = Connect;
     fn alloc(&mut self, id: Alloc) -> PortRef {
         match id {
-            Alloc::BK => PortRef::from(self.inner.clone()),
+            Alloc::BK => self.inner.clone().into_shared().into(),
         }
     }
     fn connect(&mut self, pin: PortRef, id: Connect) {
@@ -51,15 +38,19 @@ impl PortBuilder for BranchBuilder {
 }
 
 #[derive(Default, Debug)]
-pub struct Alu {
+pub struct Branch {
     pub op1: Option<PortRef>,
     pub op2: Option<PortRef>,
     pub jal_: Option<PortRef>,
     pub branchsel: Option<PortRef>,
     pub branchtype: Option<PortRef>,
 }
-
-impl Port for Alu {
+impl Control for Branch {
+    fn output(&self) -> Vec<(String, u32)> {
+        vec![("br".to_string(), self.read())]
+    }
+}
+impl Port for Branch {
     fn read(&self) -> u32 {
         let op1 = self.op1.as_ref().unwrap().read() as i32;
         let op2 = self.op2.as_ref().unwrap().read() as i32;

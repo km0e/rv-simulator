@@ -10,7 +10,7 @@ use ratatui::{
     widgets::{block::Title, *},
 };
 
-use crate::{abi::Control, simulator::Rv32i};
+use crate::{abi::Control, common::build::Stage, simulator::Rv32i};
 
 /// A type alias for the terminal type used in this application
 pub type Backend = Terminal<CrosstermBackend<Stdout>>;
@@ -33,6 +33,7 @@ pub fn restore() -> io::Result<()> {
 pub struct App {
     simulator: Rv32i,
     exit: bool,
+    cycle: usize,
 }
 
 impl App {
@@ -40,6 +41,7 @@ impl App {
         Self {
             simulator: sm,
             exit: false,
+            cycle: 0,
         }
     }
     /// runs the application's main loop until the user quits
@@ -50,10 +52,8 @@ impl App {
         }
         Ok(())
     }
-
-    fn render_frame(&self, frame: &mut Frame) {
-        // frame.render_widget(self, frame.size());
-        let chunk = Layout::default()
+    fn render_seps(&self, chunk: Rect, buffer: &mut Buffer) {
+        let chunks = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([
                 Constraint::Percentage(25),
@@ -61,14 +61,14 @@ impl App {
                 Constraint::Percentage(25),
                 Constraint::Percentage(25),
             ])
-            .split(frame.size());
+            .split(chunk);
         let signals = [
             self.simulator.if_id.inout(),
             self.simulator.id_ex.inout(),
             self.simulator.ex_mem.inout(),
             self.simulator.mem_wb.inout(),
         ];
-        chunk
+        chunks
             .iter()
             .zip(signals)
             .zip([" IF/ID ", " ID/EX ", " EX/MEM ", " MEM/WB "].iter())
@@ -92,33 +92,79 @@ impl App {
                 )
                 .header(Row::new(vec!["Name", "In", "Out"]))
                 .column_spacing(1);
-
-                frame.render_widget(table, *chunk);
-                // let (names, values): (Vec<_>, Vec<_>) = signal
-                //     .into_iter()
-                //     .map(|(n, in_, out)| (n, (in_, out)))
-                //     .unzip();
-                // let chunks = Layout::default()
-                //     .direction(Direction::Horizontal)
-                //     .constraints([
-                //         Constraint::Length(10),
-                //         Constraint::Fill(1),
-                //         Constraint::Fill(1),
-                //     ])
-                //     .split(chunks[1]);
-                // let names = List::new(names.into_iter()).block(Block::default().title("Name"));
-                // frame.render_widget(names, chunks[0]);
-
-                // let (ins, outs): (Vec<_>, Vec<_>) = values.into_iter().unzip();
-
-                // let ins = List::new(ins.into_iter().map(|in_| format!("{:x}", in_)))
-                //     .block(Block::default().title("In"));
-                // frame.render_widget(ins, chunks[1]);
-
-                // let outs = List::new(outs.into_iter().map(|out_| format!("{:x}", out_)))
-                //     .block(Block::default().title("Out"));
-                // frame.render_widget(outs, chunks[2]);
+                Widget::render(table, *chunk, buffer);
             });
+    }
+    fn render_asm(&self, chunk: Rect, buffer: &mut Buffer) {
+        let rows = self
+            .simulator
+            .asm
+            .read(chunk.height as usize)
+            .into_iter()
+            .map(|asm| Row::new(vec![asm.stage.to_string(), asm.asm]))
+            .collect::<Vec<_>>();
+        let table = Table::new(rows, [Constraint::Length(5), Constraint::Percentage(95)])
+            .block(
+                Block::default()
+                    .title(" ASM ")
+                    .title_alignment(Alignment::Center)
+                    .borders(Borders::ALL),
+            )
+            .header(Row::new(vec!["Stage", "Instruction"]))
+            .column_spacing(1);
+        Widget::render(table, chunk, buffer);
+    }
+    fn render_stage(&self, chunk: Rect, buffer: &mut Buffer) {
+        let chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+            .split(chunk);
+        let rows = self
+            .simulator
+            .ex
+            .output()
+            .into_iter()
+            .map(|(name, value)| Row::new(vec![name, format!("{:x}", value)]))
+            .collect::<Vec<_>>();
+        let table = Table::new(rows, [Constraint::Length(10), Constraint::Percentage(95)])
+            .block(
+                Block::default()
+                    .title(" EX ")
+                    .title_alignment(Alignment::Center)
+                    .borders(Borders::NONE),
+            )
+            .column_spacing(1);
+        Widget::render(table, chunks[0], buffer);
+
+        let rows = self
+            .simulator
+            .hazard
+            .output()
+            .into_iter()
+            .map(|(name, value)| Row::new(vec![name, format!("{:x}", value)]))
+            .collect::<Vec<_>>();
+        let table = Table::new(rows, [Constraint::Length(10), Constraint::Percentage(95)])
+            .block(
+                Block::default()
+                    .title(" Hazard ")
+                    .title_alignment(Alignment::Center)
+                    .borders(Borders::NONE),
+            )
+            .column_spacing(1);
+        Widget::render(table, chunks[1], buffer);
+    }
+    fn render_frame(&self, frame: &mut Frame) {
+        let chunck = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(24),
+                Constraint::Length(8),
+                Constraint::Fill(1),
+            ])
+            .split(frame.size());
+        self.render_seps(chunck[0], frame.buffer_mut());
+        self.render_stage(chunck[1], frame.buffer_mut());
+        self.render_asm(chunck[2], frame.buffer_mut());
     }
 
     /// updates the application's state based on user input
@@ -150,10 +196,15 @@ impl App {
     fn next_cycle(&mut self) {
         self.simulator.rasing_edge();
         self.simulator.falling_edge();
+        self.cycle += 1;
     }
     fn prec_cycle(&mut self) {
-        // self.simulator.falling_edge();
-        // self.simulator.rasing_edge();
+        self.simulator = self.simulator.reset();
+        self.cycle -= 1;
+        for _ in 0..self.cycle {
+            self.simulator.rasing_edge();
+            self.simulator.falling_edge();
+        }
     }
 }
 

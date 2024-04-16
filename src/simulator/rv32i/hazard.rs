@@ -1,18 +1,14 @@
+use std::env::consts;
+
 use crate::common::abi::*;
+use crate::common::build::*;
+
+use super::RegBuilder;
 
 pub enum Alloc {
     PcEnable = 0,
     IfIdEnable = 1,
     IdExClear = 2,
-}
-impl From<Alloc> for usize {
-    fn from(alloc: Alloc) -> usize {
-        match alloc {
-            Alloc::PcEnable => 0,
-            Alloc::IfIdEnable => 1,
-            Alloc::IdExClear => 2,
-        }
-    }
 }
 pub enum Connect {
     LoadSignal = 0,
@@ -21,22 +17,43 @@ pub enum Connect {
     IdRs2 = 3,
     NpcSel = 4,
 }
-impl From<Connect> for usize {
-    fn from(alloc: Connect) -> usize {
-        match alloc {
-            Connect::LoadSignal => 0,
-            Connect::ExRd => 1,
-            Connect::IdRs1 => 2,
-            Connect::IdRs2 => 3,
-            Connect::NpcSel => 4,
+pub struct HazardBuilder {
+    pub pc_enable: ControlShared<PcEnable>,
+    pub if_id_enable: ControlShared<IfIdEnable>,
+    pub id_ex_clear: ControlShared<IdExClear>,
+    pub idex_clr: RegBuilder,
+    pub pc_en: RegBuilder,
+    pub ifid_en: RegBuilder,
+}
+impl HazardBuilder {
+    pub fn new() -> Self {
+        let mut pc_enable = ControlShared::new(PcEnable::default());
+        let mut if_id_enable = ControlShared::new(IfIdEnable::default());
+        let mut id_ex_clear = ControlShared::new(IdExClear::default());
+        let mut idex_clr = RegBuilder::new(0);
+        let mut pc_en = RegBuilder::new(1);
+        let mut ifid_en = RegBuilder::new(1);
+        let mut consts = ConstsBuilder::default();
+        consts.push(0);
+        consts.push(1);
+        idex_clr.connect(pc_enable.clone().into_shared().into(), RegConnect::In);
+        idex_clr.connect(consts.alloc(ConstsAlloc::Out(0)), RegConnect::Clear);
+        idex_clr.connect(consts.alloc(ConstsAlloc::Out(1)), RegConnect::Enable);
+        ifid_en.connect(if_id_enable.clone().into_shared().into(), RegConnect::In);
+        ifid_en.connect(consts.alloc(ConstsAlloc::Out(0)), RegConnect::Clear);
+        ifid_en.connect(consts.alloc(ConstsAlloc::Out(1)), RegConnect::Enable);
+        pc_en.connect(pc_enable.clone().into_shared().into(), RegConnect::In);
+        pc_en.connect(consts.alloc(ConstsAlloc::Out(0)), RegConnect::Clear);
+        pc_en.connect(consts.alloc(ConstsAlloc::Out(1)), RegConnect::Enable);
+        HazardBuilder {
+            pc_enable,
+            if_id_enable,
+            id_ex_clear,
+            idex_clr,
+            pc_en,
+            ifid_en,
         }
     }
-}
-#[derive(Default)]
-pub struct HazardBuilder {
-    pub pc_enable: PortShared<PcEnable>,
-    pub if_id_enable: PortShared<IfIdEnable>,
-    pub id_ex_clear: PortShared<IdExClear>,
 }
 impl ControlBuilder for HazardBuilder {
     fn build(self) -> ControlRef {
@@ -44,6 +61,9 @@ impl ControlBuilder for HazardBuilder {
             pc_enable: self.pc_enable.into_shared().into(),
             if_id_enable: self.if_id_enable.into_shared().into(),
             id_ex_clear: self.id_ex_clear.into_shared().into(),
+            clr: self.idex_clr.build(),
+            pc_en: self.pc_en.build(),
+            ifid_en: self.ifid_en.build(),
         }
         .into()
     }
@@ -53,9 +73,9 @@ impl PortBuilder for HazardBuilder {
     type Connect = Connect;
     fn alloc(&mut self, id: Alloc) -> PortRef {
         match id {
-            Alloc::PcEnable => PortRef::from(self.pc_enable.clone()),
-            Alloc::IfIdEnable => PortRef::from(self.if_id_enable.clone()),
-            Alloc::IdExClear => PortRef::from(self.id_ex_clear.clone()),
+            Alloc::PcEnable => self.pc_en.alloc(RegAlloc::Out),
+            Alloc::IfIdEnable => self.ifid_en.alloc(RegAlloc::Out),
+            Alloc::IdExClear => self.idex_clr.alloc(RegAlloc::Out),
         }
     }
     fn connect(&mut self, pin: PortRef, id: Connect) {
@@ -91,8 +111,29 @@ pub struct Hazard {
     pub pc_enable: ControlRef,
     pub if_id_enable: ControlRef,
     pub id_ex_clear: ControlRef,
+    pub clr: ControlRef,
+    pub pc_en: ControlRef,
+    pub ifid_en: ControlRef,
 }
-impl Control for Hazard {}
+impl Control for Hazard {
+    fn rasing_edge(&mut self) {
+        self.clr.rasing_edge();
+        self.pc_en.rasing_edge();
+        self.ifid_en.rasing_edge();
+    }
+    fn falling_edge(&mut self) {
+        self.pc_enable.falling_edge();
+        self.if_id_enable.falling_edge();
+        self.id_ex_clear.falling_edge();
+    }
+    fn output(&self) -> Vec<(String, u32)> {
+        let mut output = Vec::new();
+        output.extend(self.pc_enable.output());
+        output.extend(self.if_id_enable.output());
+        output.extend(self.id_ex_clear.output());
+        output
+    }
+}
 #[derive(Default, Debug)]
 pub struct PcEnable {
     pub load_signal: Option<PortRef>,
@@ -101,7 +142,11 @@ pub struct PcEnable {
     pub id_rs2: Option<PortRef>,
 }
 
-impl Control for PcEnable {}
+impl Control for PcEnable {
+    fn output(&self) -> Vec<(String, u32)> {
+        vec![("pc_en".to_string(), self.read())]
+    }
+}
 
 impl Port for PcEnable {
     fn read(&self) -> u32 {
@@ -144,7 +189,11 @@ pub struct IfIdEnable {
     pub id_rs1: Option<PortRef>,
     pub id_rs2: Option<PortRef>,
 }
-impl Control for IfIdEnable {}
+impl Control for IfIdEnable {
+    fn output(&self) -> Vec<(String, u32)> {
+        vec![("ifid_en".to_string(), self.read())]
+    }
+}
 impl Port for IfIdEnable {
     fn read(&self) -> u32 {
         let load_signal = match self.load_signal {
@@ -187,7 +236,11 @@ pub struct IdExClear {
     pub id_rs1: Option<PortRef>,
     pub id_rs2: Option<PortRef>,
 }
-impl Control for IdExClear {}
+impl Control for IdExClear {
+    fn output(&self) -> Vec<(String, u32)> {
+        vec![("idex_clr".to_string(), self.read())]
+    }
+}
 impl Port for IdExClear {
     fn read(&self) -> u32 {
         let load_signal = match self.load_signal {
@@ -247,7 +300,7 @@ mod tests {
         pub npc_sel: u32,
     }
     fn run_test(alloc: TestAlloc, connect: TestConnect) {
-        let mut builder = HazardBuilder::default();
+        let mut builder = HazardBuilder::new();
         let pc_enable = builder.alloc(Alloc::PcEnable);
         let if_id_enable = builder.alloc(Alloc::IfIdEnable);
         let id_ex_clear = builder.alloc(Alloc::IdExClear);

@@ -20,22 +20,19 @@ pub enum Connect {
     RdWb = 4,
     RdWbWrite = 5,
 }
-impl From<Connect> for usize {
-    fn from(alloc: Connect) -> usize {
-        match alloc {
-            Connect::Rs1 => 0,
-            Connect::Rs2 => 1,
-            Connect::RdMem => 2,
-            Connect::RdMemWrite => 3,
-            Connect::RdWb => 4,
-            Connect::RdWbWrite => 5,
-        }
-    }
-}
 #[derive(Default)]
 pub struct ForwardBuilder {
     pub forward1: PortShared<Forward>,
     pub forward2: PortShared<Forward>,
+}
+impl ControlBuilder for ForwardBuilder {
+    fn build(self) -> ControlRef {
+        ForwardUnit {
+            forward1: self.forward1.into_shared().into(),
+            forward2: self.forward2.into_shared().into(),
+        }
+        .into()
+    }
 }
 impl PortBuilder for ForwardBuilder {
     type Alloc = Alloc;
@@ -48,25 +45,38 @@ impl PortBuilder for ForwardBuilder {
     }
     fn connect(&mut self, pin: PortRef, id: Connect) {
         match id {
-            Connect::Rs1 => self.forward1.borrow_mut().rs = Some(pin.clone()),
-            Connect::Rs2 => self.forward2.borrow_mut().rs = Some(pin.clone()),
+            Connect::Rs1 => self.forward1.borrow_mut().rs = Some(pin),
+            Connect::Rs2 => self.forward2.borrow_mut().rs = Some(pin),
             Connect::RdMem => {
                 self.forward1.borrow_mut().rd_mem = Some(pin.clone());
-                self.forward2.borrow_mut().rd_mem = Some(pin.clone());
+                self.forward2.borrow_mut().rd_mem = Some(pin);
             }
             Connect::RdMemWrite => {
                 self.forward1.borrow_mut().rd_mem_write = Some(pin.clone());
-                self.forward2.borrow_mut().rd_mem_write = Some(pin.clone());
+                self.forward2.borrow_mut().rd_mem_write = Some(pin);
             }
             Connect::RdWb => {
                 self.forward1.borrow_mut().rd_wb = Some(pin.clone());
-                self.forward2.borrow_mut().rd_wb = Some(pin.clone());
+                self.forward2.borrow_mut().rd_wb = Some(pin);
             }
             Connect::RdWbWrite => {
                 self.forward1.borrow_mut().rd_wb_write = Some(pin.clone());
-                self.forward2.borrow_mut().rd_wb_write = Some(pin.clone());
+                self.forward2.borrow_mut().rd_wb_write = Some(pin);
             }
         }
+    }
+}
+#[derive(Debug)]
+pub struct ForwardUnit {
+    pub forward1: ControlRef,
+    pub forward2: ControlRef,
+}
+impl Control for ForwardUnit {
+    fn output(&self) -> Vec<(String, u32)> {
+        let mut res = Vec::new();
+        res.extend(vec![("fwd1".to_string(), self.forward1.output()[0].1)]);
+        res.extend(vec![("fwd2".to_string(), self.forward2.output()[0].1)]);
+        res
     }
 }
 
@@ -78,7 +88,11 @@ pub struct Forward {
     pub rd_wb: Option<PortRef>,
     pub rd_wb_write: Option<PortRef>,
 }
-
+impl Control for Forward {
+    fn output(&self) -> Vec<(String, u32)> {
+        vec![("fwd".to_string(), self.read())]
+    }
+}
 impl Port for Forward {
     fn read(&self) -> u32 {
         let rs = match self.rs {

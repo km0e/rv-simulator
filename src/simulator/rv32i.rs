@@ -35,17 +35,19 @@ pub struct Rv32iBuilder {
     pub id_ex: IdExBuilder,
     pub ex_mem: ExMemBuilder,
     pub mem_wb: MemWbBuilder,
+    pub asm: AsmMemBuilder,
+    pub membak: (Vec<u8>, Vec<String>),
 }
 
 impl Rv32iBuilder {
-    fn connect(inst_mem: Vec<u32>, asm_mem: Vec<String>) -> Self {
-        let inst_mem = inst_mem.into_iter().flat_map(|x| x.to_ne_bytes()).collect();
-        let mut if_stage = IfStageBuilder::new(0, inst_mem, asm_mem);
+    fn connect(inst_mem: Vec<u8>, asm_mem: Vec<String>) -> Self {
+        // let inst_mem = inst_mem.into_iter().flat_map(|x| x.to_ne_bytes()).collect();
+        let mut if_stage = IfStageBuilder::new(0, inst_mem.clone());
         let mut id_stage = IdStageBuilder::new(0x7FFFFFF0);
         let mut ex_stage = ExStageBuilder::new();
         let mut mem_stage = MemStageBuilder::default();
         let mut wb_stage = WbStageBuilder::default();
-        let mut hazard = HazardBuilder::default();
+        let mut hazard = HazardBuilder::new();
         let mut if_id = IfIdBuilder::default();
         let mut ex_mem = ExMemBuilder::default();
         let mut mem_wb = MemWbBuilder::default();
@@ -58,10 +60,6 @@ impl Rv32iBuilder {
         if_id.connect(if_stage.alloc(IfAlloc::Pc), IfIdConnect::Pc);
         if_id.connect(if_stage.alloc(IfAlloc::Imem), IfIdConnect::Instruction);
         if_id.connect(hazard.alloc(HazardAlloc::IfIdEnable), IfIdConnect::Enable);
-        if_id.asm_connect(
-            if_stage.asm_alloc(AsmAlloc::Out.into()),
-            AsmRegConnect::In.into(),
-        );
         //set up id stage
         id_stage.connect(if_id.alloc(IfIdAlloc::Instruction), IdConnect::Inst);
         id_stage.connect(mem_wb.alloc(MemWbAlloc::RegWrite), IdConnect::RegWrite);
@@ -88,10 +86,6 @@ impl Rv32iBuilder {
         id_ex.connect(id_stage.alloc(IdAlloc::Rd), IdExConnect::Rd);
         id_ex.connect(id_stage.alloc(IdAlloc::Rs2), IdExConnect::Rs2);
         id_ex.connect(id_stage.alloc(IdAlloc::Opcode), IdExConnect::Opcode);
-        id_ex.asm_connect(
-            if_id.asm_alloc(AsmRegAlloc::Out.into()),
-            AsmRegConnect::In.into(),
-        );
         //set up ex stage
         ex_stage.connect(id_ex.alloc(IdExAlloc::Jal_), ExConnect::Jal_);
         ex_stage.connect(id_ex.alloc(IdExAlloc::BranchEn), ExConnect::BranchEn);
@@ -107,7 +101,7 @@ impl Rv32iBuilder {
         ex_stage.connect(id_ex.alloc(IdExAlloc::Rs2), ExConnect::Rs2);
         ex_stage.connect(ex_mem.alloc(ExMemAlloc::Rd), ExConnect::RdMem);
         ex_stage.connect(ex_mem.alloc(ExMemAlloc::RegWrite), ExConnect::RdMemWrite);
-        ex_stage.connect(mem_wb.alloc(MemWbAlloc::AluRes), ExConnect::RdMemData);
+        ex_stage.connect(ex_mem.alloc(ExMemAlloc::AluRes), ExConnect::RdMemData);
         ex_stage.connect(mem_wb.alloc(MemWbAlloc::Rd), ExConnect::RdWb);
         ex_stage.connect(mem_wb.alloc(MemWbAlloc::RegWrite), ExConnect::RdWbWrite);
         ex_stage.connect(wb_stage.alloc(WbAlloc::Out), ExConnect::RdWbData);
@@ -120,10 +114,6 @@ impl Rv32iBuilder {
         ex_mem.connect(ex_stage.alloc(ExAlloc::Rs2Data), ExMemConnect::Rs2Data);
         ex_mem.connect(id_ex.alloc(IdExAlloc::Rd), ExMemConnect::Rd);
         ex_mem.connect(id_ex.alloc(IdExAlloc::LoadSignal), ExMemConnect::MemRead);
-        ex_mem.asm_connect(
-            id_ex.asm_alloc(AsmRegAlloc::Out.into()),
-            AsmRegConnect::In.into(),
-        );
         //set up mem stage
         mem_stage.connect(ex_mem.alloc(ExMemAlloc::MemWrite), MemStageConnect::Write);
         mem_stage.connect(ex_mem.alloc(ExMemAlloc::AluRes), MemStageConnect::Address);
@@ -136,10 +126,6 @@ impl Rv32iBuilder {
         mem_wb.connect(ex_mem.alloc(ExMemAlloc::AluRes), MemWbConnect::AluRes);
         mem_wb.connect(mem_stage.alloc(MemStageAlloc::Out), MemWbConnect::MemData);
         mem_wb.connect(ex_mem.alloc(ExMemAlloc::Rd), MemWbConnect::Rd);
-        mem_wb.asm_connect(
-            ex_mem.asm_alloc(AsmRegAlloc::Out.into()),
-            AsmRegConnect::In.into(),
-        );
         //set up wb stage
         wb_stage.connect(mem_wb.alloc(MemWbAlloc::WbSel), WbConnect::WbSel);
         wb_stage.connect(mem_wb.alloc(MemWbAlloc::Npc), WbConnect::Npc);
@@ -158,13 +144,17 @@ impl Rv32iBuilder {
         let mut consts = ConstsBuilder::default();
         consts.push(1);
         consts.push(0);
+        if_id.connect(ex_stage.alloc(ExAlloc::BranchSel), IfIdConnect::Clear);
         id_ex.connect(consts.alloc(ConstsAlloc::Out(0)), IdExConnect::Enable);
-        id_ex.connect(consts.alloc(ConstsAlloc::Out(1)), IdExConnect::Clear);
+        id_ex.connect(hazard.alloc(HazardAlloc::IdExClear), IdExConnect::Clear);
         ex_mem.connect(consts.alloc(ConstsAlloc::Out(0)), ExMemConnect::Ebable);
         ex_mem.connect(consts.alloc(ConstsAlloc::Out(1)), ExMemConnect::Clear);
         mem_wb.connect(consts.alloc(ConstsAlloc::Out(0)), MemWbConnect::Enable);
         mem_wb.connect(consts.alloc(ConstsAlloc::Out(1)), MemWbConnect::Clear);
-        if_id.connect(consts.alloc(ConstsAlloc::Out(1)), IfIdConnect::Clear);
+        //asm
+        let mut asm = AsmMemBuilder::new(asm_mem.clone());
+        asm.connect(if_stage.npc_mux.alloc(MuxAlloc::Out), AsmConnect::Address);
+        // asm.connect(if_stage.alloc(IfAlloc::Npc), AsmConnect::Address);
         //build
         Self {
             if_stage,
@@ -177,9 +167,11 @@ impl Rv32iBuilder {
             id_ex,
             ex_mem,
             mem_wb,
+            asm,
+            membak: (inst_mem, asm_mem),
         }
     }
-    pub fn new(inst_mem: Vec<u32>, asm_mem: Vec<String>) -> Self {
+    pub fn new(inst_mem: Vec<u8>, asm_mem: Vec<String>) -> Self {
         Self::connect(inst_mem, asm_mem)
     }
     pub fn slf_build(self) -> Rv32i {
@@ -189,41 +181,52 @@ impl Rv32iBuilder {
             mem_stage: self.mem_stage.build(),
             if_id: self.if_id.build(),
             id_ex: self.id_ex.build(),
+            ex: self.ex_stage.build(),
             ex_mem: self.ex_mem.build(),
             mem_wb: self.mem_wb.build(),
             hazard: self.hazard.build(),
+            asm: self.asm.build(),
+            membak: self.membak,
         }
     }
 }
 
-impl ControlBuilder for Rv32iBuilder {
-    fn build(self) -> ControlRef {
-        Rv32i {
-            if_stage: self.if_stage.build(),
-            id_stage: self.id_stage.build(),
-            mem_stage: self.mem_stage.build(),
-            if_id: self.if_id.build(),
-            id_ex: self.id_ex.build(),
-            ex_mem: self.ex_mem.build(),
-            mem_wb: self.mem_wb.build(),
-            hazard: self.hazard.build(),
-        }
-        .into()
-    }
-}
+// impl ControlBuilder for Rv32iBuilder {
+//     fn build(self) -> ControlRef {
+//         Rv32i {
+//             if_stage: self.if_stage.build(),
+//             id_stage: self.id_stage.build(),
+//             mem_stage: self.mem_stage.build(),
+//             if_id: self.if_id.build(),
+//             id_ex: self.id_ex.build(),
+//             ex_mem: self.ex_mem.build(),
+//             mem_wb: self.mem_wb.build(),
+//             hazard: self.hazard.build(),
+//             asm: self.asm.build(),
+//         }
+//         .into()
+//     }
+// }
 
 #[derive(Debug)]
 pub struct Rv32i {
+    pub membak: (Vec<u8>, Vec<String>),
     pub if_stage: ControlRef,
     pub id_stage: ControlRef,
     pub mem_stage: ControlRef,
     pub if_id: ControlRef,
     pub id_ex: ControlRef,
+    pub ex: ControlRef,
     pub ex_mem: ControlRef,
     pub mem_wb: ControlRef,
     pub hazard: ControlRef,
+    pub asm: AsmPortRef,
 }
-
+impl Rv32i {
+    pub fn reset(&self) -> Rv32i {
+        Rv32iBuilder::connect(self.membak.0.clone(), self.membak.1.clone()).slf_build()
+    }
+}
 impl Control for Rv32i {
     fn rasing_edge(&mut self) {
         self.if_stage.rasing_edge();
@@ -233,6 +236,8 @@ impl Control for Rv32i {
         self.ex_mem.rasing_edge();
         self.mem_stage.rasing_edge();
         self.mem_wb.rasing_edge();
+        self.asm.rasing_edge();
+        self.hazard.rasing_edge();
     }
     fn falling_edge(&mut self) {
         self.if_stage.falling_edge();
@@ -242,5 +247,7 @@ impl Control for Rv32i {
         self.ex_mem.falling_edge();
         self.mem_stage.falling_edge();
         self.mem_wb.falling_edge();
+        self.asm.falling_edge();
+        self.hazard.falling_edge();
     }
 }

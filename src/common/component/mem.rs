@@ -107,6 +107,7 @@ pub struct Mem {
     pub address_cache: usize,
 }
 const STACK_ADDR: u32 = 0x7FFFFFF0;
+const STACK_SIZE: u32 = 0xFFFF;
 impl Mem {
     // pub fn new() -> Self {
     //     let mut data = DirPage::default();
@@ -171,8 +172,11 @@ impl Control for Mem {
     }
     fn falling_edge(&mut self) {
         if self.write_cache == 1 {
-            let (arr, addr) = if self.address_cache > STACK_ADDR as usize {
-                (&mut self.stack, self.address_cache - STACK_ADDR as usize)
+            let (arr, addr) = if self.address_cache > (STACK_ADDR - STACK_SIZE) as usize {
+                (
+                    &mut self.stack,
+                    self.address_cache - (STACK_ADDR - STACK_SIZE) as usize,
+                )
             } else {
                 (&mut self.data, self.address_cache)
             };

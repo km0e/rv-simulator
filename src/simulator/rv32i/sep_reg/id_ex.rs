@@ -70,15 +70,6 @@ pub struct IdExBuilder {
     pub rs2: RegBuilder,
     pub opco: RegBuilder,
     pub load_signal: RegBuilder,
-    pub asm: AsmRegBuilder,
-}
-impl AsmBuilder for IdExBuilder {
-    fn asm_connect(&mut self, pin: AsmPortRef, id: usize) {
-        self.asm.asm_connect(pin, id);
-    }
-    fn asm_alloc(&self, id: usize) -> AsmPortRef {
-        self.asm.asm_alloc(id)
-    }
 }
 impl ControlBuilder for IdExBuilder {
     fn build(self) -> ControlRef {
@@ -102,7 +93,6 @@ impl ControlBuilder for IdExBuilder {
             rs2: self.rs2.build(),
             opco: self.opco.build(),
             load_signal: self.load_signal.build(),
-            asm: self.asm.build(),
         }
         .into()
     }
@@ -220,7 +210,6 @@ pub struct IdEx {
     pub rs2: ControlRef,
     pub opco: ControlRef,
     pub load_signal: ControlRef,
-    pub asm: ControlRef,
 }
 
 impl Control for IdEx {
@@ -244,7 +233,6 @@ impl Control for IdEx {
         self.rs2.rasing_edge();
         self.opco.rasing_edge();
         self.load_signal.rasing_edge();
-        self.asm.rasing_edge();
     }
     fn falling_edge(&mut self) {
         self.reg_write.falling_edge();
@@ -266,7 +254,6 @@ impl Control for IdEx {
         self.rs2.falling_edge();
         self.opco.falling_edge();
         self.load_signal.falling_edge();
-        self.asm.falling_edge();
     }
     fn input(&self) -> Vec<(String, u32)> {
         unimplemented!()
@@ -371,6 +358,7 @@ impl Control for IdEx {
             self.load_signal.input()[0].1,
             self.load_signal.output()[0].1,
         ));
+        res.push(("clr".to_string(), self.reg_write.input()[2].1, 0));
         res
     }
 }

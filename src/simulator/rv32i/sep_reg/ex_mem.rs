@@ -37,15 +37,6 @@ pub struct ExMemBuilder {
     pub rs2_data: RegBuilder,
     pub rd: RegBuilder,
     pub mem_read: RegBuilder,
-    pub asm: AsmRegBuilder,
-}
-impl AsmBuilder for ExMemBuilder {
-    fn asm_connect(&mut self, pin: AsmPortRef, id: usize) {
-        self.asm.asm_connect(pin, id);
-    }
-    fn asm_alloc(&self, id: usize) -> AsmPortRef {
-        self.asm.asm_alloc(id)
-    }
 }
 impl ControlBuilder for ExMemBuilder {
     fn build(self) -> ControlRef {
@@ -58,7 +49,6 @@ impl ControlBuilder for ExMemBuilder {
             rs2_data: self.rs2_data.build(),
             rd: self.rd.build(),
             mem_read: self.mem_read.build(),
-            asm: self.asm.build(),
         }
         .into()
     }
@@ -122,7 +112,6 @@ pub struct ExMem {
     pub alu_res: ControlRef,
     pub rs2_data: ControlRef,
     pub rd: ControlRef,
-    pub asm: ControlRef,
 }
 impl Control for ExMem {
     fn rasing_edge(&mut self) {
@@ -134,7 +123,6 @@ impl Control for ExMem {
         self.rs2_data.rasing_edge();
         self.rd.rasing_edge();
         self.mem_read.rasing_edge();
-        self.asm.rasing_edge();
     }
     fn falling_edge(&mut self) {
         self.reg_write.falling_edge();
@@ -145,7 +133,6 @@ impl Control for ExMem {
         self.rs2_data.falling_edge();
         self.rd.falling_edge();
         self.mem_read.falling_edge();
-        self.asm.falling_edge();
     }
     fn input(&self) -> Vec<(String, u32)> {
         unimplemented!()
