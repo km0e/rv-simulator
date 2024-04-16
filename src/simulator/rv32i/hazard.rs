@@ -1,5 +1,3 @@
-use std::env::consts;
-
 use crate::common::abi::*;
 use crate::common::build::*;
 
@@ -25,11 +23,17 @@ pub struct HazardBuilder {
     pub pc_en: RegBuilder,
     pub ifid_en: RegBuilder,
 }
+impl Default for HazardBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HazardBuilder {
     pub fn new() -> Self {
-        let mut pc_enable = ControlShared::new(PcEnable::default());
-        let mut if_id_enable = ControlShared::new(IfIdEnable::default());
-        let mut id_ex_clear = ControlShared::new(IdExClear::default());
+        let pc_enable = ControlShared::new(PcEnable::default());
+        let if_id_enable = ControlShared::new(IfIdEnable::default());
+        let id_ex_clear = ControlShared::new(IdExClear::default());
         let mut idex_clr = RegBuilder::new(0);
         let mut pc_en = RegBuilder::new(1);
         let mut ifid_en = RegBuilder::new(1);
@@ -286,7 +290,7 @@ impl Port for IdExClear {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::build::*;
+
     struct TestAlloc {
         pub pc_enable: u32,
         pub if_id_enable: u32,

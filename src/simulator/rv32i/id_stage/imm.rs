@@ -29,40 +29,40 @@ pub struct Imm {
     pub opcode: Option<PortRef>,
     pub inst: Option<PortRef>,
 }
-
 impl Port for Imm {
     fn read(&self) -> u32 {
-        let input = match self.opcode {
+        let inst = match self.opcode {
             Some(ref input) => input.read(),
             None => {
                 unimplemented!()
             }
         };
-        let inst = match self.inst {
+        let input = match self.inst {
             Some(ref input) => input.read(),
             None => {
                 unimplemented!()
             }
         };
-        let inst = inst as i32;
-        let inst = match input & 0b1111111 {
-            0b001_0011 | 0b000_0011 | 0b110_0111 => inst >> 20,
-            0b010_0011 => ((inst >> 7) & 0b11111) | (((inst as i32) >> 25) << 5),
+        let input = input as i32;
+        let output = match inst & 0b1111111 {
+            0b001_0011 | 0b000_0011 | 0b110_0111 => input >> 20,
+            0b010_0011 => ((input >> 7) & 0b11111) | (((input as i32) >> 25) << 5),
+            //|imm[12]|imm[10:5]|rs2|rs1|funct3|imm[4:1]|imm[11]|opcode|
             0b110_0011 => {
-                ((inst >> 7) & 0b11110)
-                    | (((inst >> 25) & 0b111111) << 5)
-                    | (((inst >> 7) & 0b1) << 11)
-                    | (((inst >> 31) & 0b1) << 12)
+                ((input >> 7) & 0b11110)
+                    | (((input >> 25) & 0b111111) << 5)
+                    | (((input >> 7) & 0b1) << 11)
+                    | ((input >> 31) << 12)
             }
             0b110_1111 => {
-                ((inst >> 20) & 0b11111111110)
-                    | ((inst >> 9) & 0b100000000000)
-                    | ((inst) & 0b11111111000000000000)
-                    | ((inst >> 10) & 0b100000000000000000000)
+                ((input >> 20) & 0b11111111110)
+                    | ((input >> 9) & 0b100000000000)
+                    | ((input) & 0b11111111000000000000)
+                    | ((input >> 10) & 0b100000000000000000000)
             }
-            _ => inst >> 12,
+            _ => input >> 12,
         };
-        inst as u32
+        output as u32
     }
 }
 pub mod build {}

@@ -1,10 +1,5 @@
 use crate::common::abi::*;
-use std::{
-    cell::RefCell,
-    collections::{self, BTreeSet, BinaryHeap},
-    fmt::Debug,
-    rc::Rc,
-};
+use std::{cell::RefCell, collections::BTreeSet, fmt::Debug, rc::Rc};
 mod reg;
 // pub use reg::Alloc;
 
@@ -46,11 +41,6 @@ impl<T: 'static + AsmPort> AsmPortShared<T> {
         self.0
     }
 }
-// impl<T: 'static + AsmPort> ToShared<T> for AsmPortShared<T> {
-//     fn to_shared(self) -> Shared<T> {
-//         self.0
-//     }
-// }
 impl<T: 'static + AsmPort> Clone for AsmPortShared<T> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
@@ -69,12 +59,6 @@ impl AsmPortRef {
         self.0.borrow_mut().falling_edge()
     }
 }
-// impl<T: 'static + AsmPort> From<AsmPortShared<T>> for AsmPortRef {
-//     fn from(shared: AsmPortShared<T>) -> Self {
-//         Self(shared.to_shared().into())
-//     }
-// }
-
 impl<T: 'static + AsmPort> From<Shared<T>> for AsmPortRef {
     fn from(asm: Shared<T>) -> Self {
         Self(asm.into_inner())
@@ -85,11 +69,6 @@ impl<T: 'static + AsmPort + Control> From<ControlShared<T>> for AsmPortRef {
         shared.into_shared().into()
     }
 }
-// impl<T: 'static + AsmPort> From<T> for AsmPortRef {
-//     fn from(asm: T) -> Self {
-//         Self(Rc::new(RefCell::new(asm)))
-//     }
-// }
 impl Clone for AsmPortRef {
     fn clone(&self) -> Self {
         Self(self.0.clone())
@@ -230,7 +209,6 @@ pub mod build {
     pub use super::AsmBuilder;
     pub use super::AsmMemBuilder;
     pub use super::AsmPortRef;
-    pub use super::Stage;
 
     pub use super::Connect as AsmConnect;
 }

@@ -7,15 +7,14 @@ pub enum Connect {
 }
 #[derive(Clone)]
 pub struct BitBuilder {
-    pub inner: PortShared<Bit>,
+    pub interval: (u8, u8), //[]
+    pub input: Option<PortRef>,
 }
 impl BitBuilder {
     pub fn new(interval: (u8, u8)) -> Self {
         Self {
-            inner: PortShared::new(Bit {
-                interval,
-                data: None,
-            }),
+            interval,
+            input: None,
         }
     }
 }
@@ -23,22 +22,27 @@ impl PortBuilder for BitBuilder {
     type Alloc = Alloc;
     type Connect = Connect;
     fn alloc(&mut self, _id: Self::Alloc) -> PortRef {
-        PortRef::from(self.inner.clone())
+        assert!(self.input.is_some(), "Bit input is not connected");
+        PortRef::from(Bit::new(self.interval, self.input.clone().unwrap()))
     }
     fn connect(&mut self, pin: PortRef, _id: Self::Connect) {
-        self.inner.borrow_mut().data = Some(pin);
+        self.input = Some(pin);
     }
 }
 
 #[derive(Debug)]
 pub struct Bit {
     pub interval: (u8, u8), //[]
-    pub data: Option<PortRef>,
+    pub input: PortRef,
 }
-
+impl Bit {
+    pub fn new(interval: (u8, u8), input: PortRef) -> Self {
+        Self { interval, input }
+    }
+}
 impl Port for Bit {
     fn read(&self) -> u32 {
-        let data = self.data.as_ref().unwrap().read();
+        let data = self.input.read();
         if self.interval.1 - self.interval.0 == 31 {
             return data;
         }

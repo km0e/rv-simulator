@@ -86,9 +86,6 @@ impl PortBuilder for MemBuilder {
             Self::Connect::Read => self.inner.borrow_mut().read = Some(pin),
         }
     }
-    // alloc the id for the memory
-    // 0 for address
-    // 1 for input
     fn alloc(&mut self, _: Self::Alloc) -> PortRef {
         self.inner.clone().into_shared().into()
     }

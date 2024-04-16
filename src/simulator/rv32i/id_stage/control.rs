@@ -58,7 +58,7 @@ impl PortBuilder for CtrlSigBuilder {
     type Connect = Connect;
     fn alloc(&mut self, id: Alloc) -> PortRef {
         match id {
-            Alloc::BranchType => PortRef::from(self.branch_type.inner.clone()),
+            Alloc::BranchType => self.branch_type.alloc(BitAlloc::Out),
             Alloc::AluCtrl => PortRef::from(self.alu_ctl.clone()),
             Alloc::ImmSel => PortRef::from(self.imm_sel.clone()),
             Alloc::PcSel => PortRef::from(self.pc_sel.clone()),

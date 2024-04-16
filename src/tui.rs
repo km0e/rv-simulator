@@ -10,7 +10,7 @@ use ratatui::{
     widgets::{block::Title, *},
 };
 
-use crate::{abi::Control, common::build::Stage, simulator::Rv32i};
+use crate::{abi::Control, simulator::Rv32i};
 
 /// A type alias for the terminal type used in this application
 pub type Backend = Terminal<CrosstermBackend<Stdout>>;
@@ -103,7 +103,7 @@ impl App {
             .into_iter()
             .map(|asm| Row::new(vec![asm.stage.to_string(), asm.asm]))
             .collect::<Vec<_>>();
-        let table = Table::new(rows, [Constraint::Length(5), Constraint::Percentage(95)])
+        let table = Table::new(rows, [Constraint::Length(10), Constraint::Percentage(95)])
             .block(
                 Block::default()
                     .title(" ASM ")
