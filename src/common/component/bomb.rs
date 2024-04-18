@@ -8,7 +8,9 @@ impl Port for Bomb {
         unreachable!("Bomb")
     }
 }
-
+pub fn bomb() -> Shared<Bomb> {
+    Shared::from(Bomb::default())
+}
 pub mod build {
-    pub use super::Bomb;
+    pub use super::bomb;
 }

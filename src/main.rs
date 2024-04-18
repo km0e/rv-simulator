@@ -33,5 +33,6 @@ fn main() -> std::io::Result<()> {
     let rv = rv_simulator::Rv32iBuilder::new(instruction_memory, asm_mem).slf_build();
     let mut backend = rv_simulator::tui::init()?;
     rv_simulator::tui::App::new(rv).run(&mut backend)?;
-    rv_simulator::tui::restore()
+    rv_simulator::tui::restore()?;
+    Ok(())
 }

@@ -1,4 +1,5 @@
 use crate::common::abi::*;
+use crate::common::build::*;
 use std::{cell::RefCell, collections::BTreeSet, fmt::Debug, rc::Rc};
 mod reg;
 // pub use reg::Alloc;
@@ -14,7 +15,7 @@ pub enum Stage {
 impl ToString for Stage {
     fn to_string(&self) -> String {
         match self {
-            Stage::None => "None".to_string(),
+            Stage::None => "".to_string(),
             Stage::Fetch => "Fetch".to_string(),
             Stage::Decode => "Decode".to_string(),
             Stage::Execute => "Execute".to_string(),
@@ -37,7 +38,7 @@ impl<T: 'static + AsmPort> AsmPortShared<T> {
     pub fn new(asm: T) -> Self {
         Self(asm.into())
     }
-    pub fn into_inner(self) -> Shared<T> {
+    pub fn into_shared(self) -> Shared<T> {
         self.0
     }
 }
@@ -64,8 +65,8 @@ impl<T: 'static + AsmPort> From<Shared<T>> for AsmPortRef {
         Self(asm.into_inner())
     }
 }
-impl<T: 'static + AsmPort + Control> From<ControlShared<T>> for AsmPortRef {
-    fn from(shared: ControlShared<T>) -> Self {
+impl<T: 'static + AsmPort + Control> From<AsmPortShared<T>> for AsmPortRef {
+    fn from(shared: AsmPortShared<T>) -> Self {
         shared.into_shared().into()
     }
 }
@@ -79,22 +80,43 @@ pub trait AsmBuilder {
 }
 pub enum Connect {
     Address,
+    IfEn,
+    IdEn,
+    IdClr,
+    ExClr,
 }
 
-#[derive(Default)]
 pub struct AsmMemBuilder {
-    pub inner: AsmPortShared<Asm>,
+    pub addr: PortRef,
+    pub if_en: PortRef,
+    pub id_en: PortRef,
+    pub id_clr: PortRef,
+    pub ex_clr: PortRef,
+    pub mem: Vec<String>,
 }
 impl AsmMemBuilder {
     pub fn new(mem: Vec<String>) -> Self {
         Self {
-            inner: AsmPortShared::new(Asm::new(mem)),
+            addr: bomb().into(),
+            if_en: bomb().into(),
+            id_en: bomb().into(),
+            id_clr: bomb().into(),
+            ex_clr: bomb().into(),
+            mem,
         }
     }
 }
 impl AsmBuilder for AsmMemBuilder {
     fn build(self) -> AsmPortRef {
-        self.inner.into_inner().into()
+        AsmPortShared::new(Asm::new(
+            self.addr,
+            self.if_en,
+            self.id_en,
+            self.id_clr,
+            self.ex_clr,
+            self.mem,
+        ))
+        .into()
     }
 }
 impl PortBuilder for AsmMemBuilder {
@@ -105,25 +127,52 @@ impl PortBuilder for AsmMemBuilder {
     }
     fn connect(&mut self, pin: PortRef, id: Self::Connect) {
         match id {
-            Self::Connect::Address => self.inner.0.borrow_mut().address = Some(pin),
+            Self::Connect::Address => self.addr = pin,
+            Self::Connect::IfEn => self.if_en = pin,
+            Self::Connect::IdEn => self.id_en = pin,
+            Self::Connect::IdClr => self.id_clr = pin,
+            Self::Connect::ExClr => self.ex_clr = pin,
         }
     }
 }
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Asm {
-    pub address: Option<PortRef>,
-    pub address_cache: u32,
+    pub addr: PortRef,
+    pub addr_cache: u32,
+    pub if_en: PortRef,
+    pub if_en_cache: u32,
+    pub id_en: PortRef,
+    pub id_en_cache: u32,
+    pub id_clr: PortRef,
+    pub id_clr_cache: u32,
+    pub ex_clr: PortRef,
+    pub ex_clr_cache: u32,
     pub set: BTreeSet<u32>,
     pub stages: Vec<Option<u32>>,
     pub mem: Vec<String>,
 }
 impl Asm {
-    pub fn new(mem: Vec<String>) -> Self {
+    pub fn new(
+        addr: PortRef,
+        if_en: PortRef,
+        id_en: PortRef,
+        id_clr: PortRef,
+        ex_clr: PortRef,
+        mem: Vec<String>,
+    ) -> Self {
         let mut stages = vec![None; 5];
         stages[0] = Some(0);
         Self {
-            address: None,
-            address_cache: 0,
+            addr,
+            addr_cache: 0,
+            if_en,
+            if_en_cache: 0,
+            id_en,
+            id_en_cache: 0,
+            id_clr,
+            id_clr_cache: 0,
+            ex_clr,
+            ex_clr_cache: 0,
             set: BTreeSet::new(),
             stages,
             mem,
@@ -132,38 +181,33 @@ impl Asm {
 }
 impl Control for Asm {
     fn rasing_edge(&mut self) {
-        self.address_cache = self.address.as_ref().expect("address not connected").read() / 4;
+        self.addr_cache = self.addr.read() / 4;
+        self.if_en_cache = self.if_en.read();
+        self.id_en_cache = self.id_en.read();
+        self.id_clr_cache = self.id_clr.read();
+        self.ex_clr_cache = self.ex_clr.read();
     }
     fn falling_edge(&mut self) {
-        let addr = self.address_cache as usize;
-        if addr < self.mem.len() {
-            if let Some(Some(stage)) = self.stages.last() {
-                self.set.remove(stage);
-            }
-            self.stages.rotate_right(1);
-            self.stages[0] = Some(self.address_cache);
-            self.set.insert(self.address_cache);
+        if let Some(Some(stage)) = self.stages.last() {
+            self.set.remove(stage);
+        }
+        self.stages.rotate_right(1);
+        if self.if_en_cache != 1 {
+            self.stages[0] = self.stages[1];
+        } else {
+            self.stages[0] = Some(self.addr_cache);
+            self.set.insert(self.addr_cache);
+        }
+        if self.id_clr_cache != 0 {
+            self.stages[1] = None;
+        } else if self.id_en_cache != 1 {
+            self.stages[1] = self.stages[2];
+        }
+        if self.ex_clr_cache != 0 {
+            self.stages[2] = None;
         }
     }
-    fn input(&self) -> Vec<(String, u32)> {
-        unimplemented!("Asm: input")
-    }
-    fn output(&self) -> Vec<(String, u32)> {
-        unimplemented!("Asm: output")
-    }
 }
-// impl AsmControl for Asm {
-//     fn asm(&self, addr: u32) -> String {
-//         if addr < self.mem.len() as u32 {
-//             self.mem[(addr / 4) as usize].clone()
-//         } else {
-//             "Invalid instruction".to_string()
-//         }
-//     }
-// }
-// pub trait AsmControl: Control {
-//     fn asm(&self, addr: u32) -> String;
-// }
 impl AsmPort for Asm {
     fn read(&self, len_hint: usize) -> Vec<Inst> {
         let mut start = self.set.first().copied().unwrap_or(0);

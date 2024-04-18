@@ -72,10 +72,10 @@ pub struct ForwardUnit {
     pub forward2: ControlRef,
 }
 impl Control for ForwardUnit {
-    fn output(&self) -> Vec<(String, u32)> {
+    fn output(&self) -> Vec<(&'static str, u32)> {
         let mut res = Vec::new();
-        res.extend(vec![("fwd1".to_string(), self.forward1.output()[0].1)]);
-        res.extend(vec![("fwd2".to_string(), self.forward2.output()[0].1)]);
+        res.extend(vec![("fwd1", self.forward1.output()[0].1)]);
+        res.extend(vec![("fwd2", self.forward2.output()[0].1)]);
         res
     }
 }
@@ -89,8 +89,8 @@ pub struct Forward {
     pub rd_wb_write: Option<PortRef>,
 }
 impl Control for Forward {
-    fn output(&self) -> Vec<(String, u32)> {
-        vec![("fwd".to_string(), self.read())]
+    fn output(&self) -> Vec<(&'static str, u32)> {
+        vec![("fwd", self.read())]
     }
 }
 impl Port for Forward {
@@ -153,18 +153,18 @@ mod tests {
     ) {
         let mut forward = ForwardBuilder::default();
         let mut consts = ConstsBuilder::default();
-        consts.push(rs1);
-        consts.push(rs2);
-        consts.push(rd_mem);
-        consts.push(rd_mem_write);
-        consts.push(rd_wb);
-        consts.push(rd_wb_write);
-        forward.connect(consts.alloc(ConstsAlloc::Out(0)), Connect::Rs1);
-        forward.connect(consts.alloc(ConstsAlloc::Out(1)), Connect::Rs2);
-        forward.connect(consts.alloc(ConstsAlloc::Out(2)), Connect::RdMem);
-        forward.connect(consts.alloc(ConstsAlloc::Out(3)), Connect::RdMemWrite);
-        forward.connect(consts.alloc(ConstsAlloc::Out(4)), Connect::RdWb);
-        forward.connect(consts.alloc(ConstsAlloc::Out(5)), Connect::RdWbWrite);
+        forward.connect(consts.alloc(ConstsAlloc::Out(rs1)), Connect::Rs1);
+        forward.connect(consts.alloc(ConstsAlloc::Out(rs2)), Connect::Rs2);
+        forward.connect(consts.alloc(ConstsAlloc::Out(rd_mem)), Connect::RdMem);
+        forward.connect(
+            consts.alloc(ConstsAlloc::Out(rd_mem_write)),
+            Connect::RdMemWrite,
+        );
+        forward.connect(consts.alloc(ConstsAlloc::Out(rd_wb)), Connect::RdWb);
+        forward.connect(
+            consts.alloc(ConstsAlloc::Out(rd_wb_write)),
+            Connect::RdWbWrite,
+        );
         let forward1_ = forward.alloc(Alloc::Forward1);
         let forward2_ = forward.alloc(Alloc::Forward2);
         assert_eq!(forward1_.read(), forward1);

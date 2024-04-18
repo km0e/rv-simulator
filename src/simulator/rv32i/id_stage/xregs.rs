@@ -105,14 +105,11 @@ mod tests {
     fn test_regs() {
         let mut rsb = XregsBuilder::new(0);
         let mut consts = ConstsBuilder::default();
-        consts.push(0);
-        consts.push(1);
-        consts.push(4);
         rsb.connect(consts.alloc(ConstsAlloc::Out(0)), Connect::Rs1);
         rsb.connect(consts.alloc(ConstsAlloc::Out(1)), Connect::Rs2);
         rsb.connect(consts.alloc(ConstsAlloc::Out(0)), Connect::Rd);
         rsb.connect(consts.alloc(ConstsAlloc::Out(1)), Connect::Write);
-        rsb.connect(consts.alloc(ConstsAlloc::Out(2)), Connect::RdData);
+        rsb.connect(consts.alloc(ConstsAlloc::Out(4)), Connect::RdData);
         let r1 = rsb.alloc(Alloc::R1Data);
         let r2 = rsb.alloc(Alloc::R2Data);
         let rs = rsb.build();

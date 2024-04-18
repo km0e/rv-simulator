@@ -46,8 +46,8 @@ pub struct Branch {
     pub branchtype: Option<PortRef>,
 }
 impl Control for Branch {
-    fn output(&self) -> Vec<(String, u32)> {
-        vec![("br".to_string(), self.read())]
+    fn output(&self) -> Vec<(&'static str, u32)> {
+        vec![("br", self.read())]
     }
 }
 impl Port for Branch {
@@ -84,16 +84,11 @@ mod tests {
     fn test_alu() {
         let mut alub = BranchBuilder::default();
         let mut consts = ConstsBuilder::default();
-        consts.push(1);
-        consts.push(2);
-        consts.push(0b1);
-        consts.push(0);
-        consts.push(1);
-        alub.connect(consts.alloc(ConstsAlloc::Out(0)), Connect::Op1);
-        alub.connect(consts.alloc(ConstsAlloc::Out(1)), Connect::Op2);
-        alub.connect(consts.alloc(ConstsAlloc::Out(2)), Connect::BranchType);
-        alub.connect(consts.alloc(ConstsAlloc::Out(0)), Connect::Jal_);
-        alub.connect(consts.alloc(ConstsAlloc::Out(0)), Connect::BranchSel);
+        alub.connect(consts.alloc(ConstsAlloc::Out(1)), Connect::Op1);
+        alub.connect(consts.alloc(ConstsAlloc::Out(2)), Connect::Op2);
+        alub.connect(consts.alloc(ConstsAlloc::Out(1)), Connect::BranchType);
+        alub.connect(consts.alloc(ConstsAlloc::Out(1)), Connect::Jal_);
+        alub.connect(consts.alloc(ConstsAlloc::Out(1)), Connect::BranchSel);
         let alu = alub.alloc(Alloc::BK);
         assert_eq!(alu.read(), 1);
     }

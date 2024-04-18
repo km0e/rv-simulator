@@ -1,13 +1,23 @@
+use std::collections::HashMap;
+
 use crate::common::abi::*;
-use crate::common::build::*;
 pub enum Alloc {
-    Out(usize),
+    Out(u32),
 }
 #[allow(dead_code)]
 pub enum Connect {}
+#[derive(Debug)]
+pub struct Consts {
+    data: u32,
+}
+impl Port for Consts {
+    fn read(&self) -> u32 {
+        self.data
+    }
+}
 #[derive(Default)]
 pub struct ConstsBuilder {
-    data: Vec<PortShared<Lat>>,
+    set: HashMap<u32, PortRef>,
 }
 impl PortBuilder for ConstsBuilder {
     type Connect = ();
@@ -16,15 +26,11 @@ impl PortBuilder for ConstsBuilder {
         unreachable!("ConstsBuilder does not have any input");
     }
     fn alloc(&mut self, id: Self::Alloc) -> PortRef {
-        let ps = match id {
-            Alloc::Out(id) => self.data[id].clone(),
-        };
-        ps.into()
-    }
-}
-impl ConstsBuilder {
-    pub fn push(&mut self, value: u32) {
-        self.data.push(PortShared::new(Lat::new(value)));
+        let Alloc::Out(data) = id;
+        self.set
+            .entry(data)
+            .or_insert_with(|| Shared::from(Consts { data }).into())
+            .clone()
     }
 }
 pub mod build {
@@ -39,9 +45,9 @@ mod tests {
     #[test]
     fn test_consts() {
         let mut consts = ConstsBuilder::default();
-        consts.push(1);
-        consts.push(2);
-        assert_eq!(consts.alloc(Alloc::Out(0)).read(), 1);
-        assert_eq!(consts.alloc(Alloc::Out(1)).read(), 2);
+        let out0 = consts.alloc(Alloc::Out(0));
+        let out1 = consts.alloc(Alloc::Out(1));
+        assert_eq!(out0.read(), 0);
+        assert_eq!(out1.read(), 1);
     }
 }

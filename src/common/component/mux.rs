@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::common::abi::*;
 use crate::common::build::*;
 pub enum Alloc {
@@ -5,11 +7,22 @@ pub enum Alloc {
 }
 pub enum Connect {
     Select,
-    In(usize),
+    In(u32),
 }
-#[derive(Default)]
+
+#[derive(Debug)]
 pub struct MuxBuilder {
-    pub inner: PortShared<Mux>,
+    inner: PortShared<Mux>,
+}
+impl Default for MuxBuilder {
+    fn default() -> Self {
+        Self {
+            inner: PortShared::new(Mux {
+                input: HashMap::new(),
+                select: bomb().into(),
+            }),
+        }
+    }
 }
 impl ControlBuilder for MuxBuilder {
     fn build(self) -> ControlRef {
@@ -21,34 +34,31 @@ impl PortBuilder for MuxBuilder {
     type Connect = Connect;
     fn connect(&mut self, pin: PortRef, id: Self::Connect) {
         match id {
-            Self::Connect::Select => self.inner.borrow_mut().select = Some(pin),
-            Self::Connect::In(c) => {
-                let input = &mut self.inner.borrow_mut().input;
-                if c == input.len() {
-                    input.resize(c + 1, Bomb::default().into());
-                }
-                input[c] = pin;
+            Self::Connect::Select => self.inner.borrow_mut().select = pin,
+            Self::Connect::In(id) => {
+                self.inner.borrow_mut().input.insert(id, pin);
             }
-        }
+        };
     }
     fn alloc(&mut self, _: Self::Alloc) -> PortRef {
         PortRef::from(self.inner.clone())
     }
 }
-#[derive(Debug, Default)]
+#[derive(Debug, Clone)]
 pub struct Mux {
-    pub input: Vec<PortRef>,
-    pub select: Option<PortRef>, // select input
+    input: HashMap<u32, PortRef>, // input
+    select: PortRef,              // select input
 }
+
 impl Port for Mux {
     fn read(&self) -> u32 {
-        let id = self.select.as_ref().unwrap().read();
-        self.input[id as usize].read()
+        let id = self.select.read();
+        self.input.get(&id).expect("mux input").read()
     }
 }
 impl Control for Mux {
-    fn output(&self) -> Vec<(String, u32)> {
-        vec![("mux".to_string(), self.read())]
+    fn output(&self) -> Vec<(&'static str, u32)> {
+        vec![("mux", self.read())]
     }
 }
 pub mod build {
@@ -63,16 +73,12 @@ mod tests {
     #[test]
     fn test_mux() {
         let mut tb = MuxBuilder::default();
-        let t = tb.alloc(MuxAlloc::Out);
         let mut constant = ConstsBuilder::default();
-        constant.push(1);
-        constant.push(2);
-        constant.push(0);
-        tb.connect(constant.alloc(ConstsAlloc::Out(2)), MuxConnect::Select);
-        tb.connect(constant.alloc(ConstsAlloc::Out(0)), MuxConnect::In(0));
-        tb.connect(constant.alloc(ConstsAlloc::Out(1)), MuxConnect::In(1));
-        assert_eq!(t.read(), 1);
-        assert_eq!(t.read(), 1);
+        tb.connect(constant.alloc(ConstsAlloc::Out(0)), MuxConnect::Select);
+        tb.connect(constant.alloc(ConstsAlloc::Out(1)), MuxConnect::In(0));
+        tb.connect(constant.alloc(ConstsAlloc::Out(2)), MuxConnect::In(1));
+        let t = tb.alloc(MuxAlloc::Out);
+        let _ = tb.build();
         assert_eq!(t.read(), 1);
     }
 }

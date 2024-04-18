@@ -1,8 +1,7 @@
 use crate::common::abi::*;
 use crate::common::build::*;
-
-use super::RegBuilder;
-
+mod raw;
+use raw::build::*;
 pub enum Alloc {
     PcEnable = 0,
     IfIdEnable = 1,
@@ -16,12 +15,9 @@ pub enum Connect {
     NpcSel = 4,
 }
 pub struct HazardBuilder {
-    pub pc_enable: ControlShared<PcEnable>,
-    pub if_id_enable: ControlShared<IfIdEnable>,
-    pub id_ex_clear: ControlShared<IdExClear>,
-    pub idex_clr: RegBuilder,
-    pub pc_en: RegBuilder,
-    pub ifid_en: RegBuilder,
+    pub raw: RAWBuilder,
+    pub not: NotBuilder,
+    pub or: OrBuilder,
 }
 impl Default for HazardBuilder {
     fn default() -> Self {
@@ -31,43 +27,20 @@ impl Default for HazardBuilder {
 
 impl HazardBuilder {
     pub fn new() -> Self {
-        let pc_enable = ControlShared::new(PcEnable::default());
-        let if_id_enable = ControlShared::new(IfIdEnable::default());
-        let id_ex_clear = ControlShared::new(IdExClear::default());
-        let mut idex_clr = RegBuilder::new(0);
-        let mut pc_en = RegBuilder::new(1);
-        let mut ifid_en = RegBuilder::new(1);
-        let mut consts = ConstsBuilder::default();
-        consts.push(0);
-        consts.push(1);
-        idex_clr.connect(pc_enable.clone().into_shared().into(), RegConnect::In);
-        idex_clr.connect(consts.alloc(ConstsAlloc::Out(0)), RegConnect::Clear);
-        idex_clr.connect(consts.alloc(ConstsAlloc::Out(1)), RegConnect::Enable);
-        ifid_en.connect(if_id_enable.clone().into_shared().into(), RegConnect::In);
-        ifid_en.connect(consts.alloc(ConstsAlloc::Out(0)), RegConnect::Clear);
-        ifid_en.connect(consts.alloc(ConstsAlloc::Out(1)), RegConnect::Enable);
-        pc_en.connect(pc_enable.clone().into_shared().into(), RegConnect::In);
-        pc_en.connect(consts.alloc(ConstsAlloc::Out(0)), RegConnect::Clear);
-        pc_en.connect(consts.alloc(ConstsAlloc::Out(1)), RegConnect::Enable);
-        HazardBuilder {
-            pc_enable,
-            if_id_enable,
-            id_ex_clear,
-            idex_clr,
-            pc_en,
-            ifid_en,
-        }
+        let mut raw = RAWBuilder::default();
+        let mut not = NotBuilder::default();
+        not.connect(raw.alloc(RAWAlloc::Out), NotConnect::In);
+        let mut or = OrBuilder::default();
+        or.connect(raw.alloc(RAWAlloc::Out), OrConnect::In);
+        HazardBuilder { not, raw, or }
     }
 }
 impl ControlBuilder for HazardBuilder {
     fn build(self) -> ControlRef {
         Hazard {
-            pc_enable: self.pc_enable.into_shared().into(),
-            if_id_enable: self.if_id_enable.into_shared().into(),
-            id_ex_clear: self.id_ex_clear.into_shared().into(),
-            clr: self.idex_clr.build(),
-            pc_en: self.pc_en.build(),
-            ifid_en: self.ifid_en.build(),
+            raw: self.raw.build(),
+            not: self.not.build(),
+            or: self.or.build(),
         }
         .into()
     }
@@ -77,213 +50,52 @@ impl PortBuilder for HazardBuilder {
     type Connect = Connect;
     fn alloc(&mut self, id: Alloc) -> PortRef {
         match id {
-            Alloc::PcEnable => self.pc_en.alloc(RegAlloc::Out),
-            Alloc::IfIdEnable => self.ifid_en.alloc(RegAlloc::Out),
-            Alloc::IdExClear => self.idex_clr.alloc(RegAlloc::Out),
+            Alloc::PcEnable => self.not.alloc(NotAlloc::Out),
+            Alloc::IfIdEnable => self.not.alloc(NotAlloc::Out),
+            Alloc::IdExClear => self.or.alloc(OrAlloc::Out),
         }
     }
     fn connect(&mut self, pin: PortRef, id: Connect) {
         match id {
             Connect::LoadSignal => {
-                self.pc_enable.borrow_mut().load_signal = Some(pin.clone());
-                self.if_id_enable.borrow_mut().load_signal = Some(pin.clone());
-                self.id_ex_clear.borrow_mut().load_signal = Some(pin.clone());
+                self.raw.connect(pin.clone(), RAWConnect::En);
             }
             Connect::ExRd => {
-                self.pc_enable.borrow_mut().ex_rd = Some(pin.clone());
-                self.if_id_enable.borrow_mut().ex_rd = Some(pin.clone());
-                self.id_ex_clear.borrow_mut().ex_rd = Some(pin.clone());
+                self.raw.connect(pin.clone(), RAWConnect::Rd);
             }
             Connect::IdRs1 => {
-                self.pc_enable.borrow_mut().id_rs1 = Some(pin.clone());
-                self.if_id_enable.borrow_mut().id_rs1 = Some(pin.clone());
-                self.id_ex_clear.borrow_mut().id_rs1 = Some(pin.clone());
+                self.raw.connect(pin.clone(), RAWConnect::Rs1);
             }
             Connect::IdRs2 => {
-                self.pc_enable.borrow_mut().id_rs2 = Some(pin.clone());
-                self.if_id_enable.borrow_mut().id_rs2 = Some(pin.clone());
-                self.id_ex_clear.borrow_mut().id_rs2 = Some(pin.clone());
+                self.raw.connect(pin.clone(), RAWConnect::Rs2);
             }
             Connect::NpcSel => {
-                self.id_ex_clear.borrow_mut().npc_sel = Some(pin.clone());
+                self.or.connect(pin.clone(), OrConnect::In);
             }
         }
     }
 }
 #[derive(Debug)]
 pub struct Hazard {
-    pub pc_enable: ControlRef,
-    pub if_id_enable: ControlRef,
-    pub id_ex_clear: ControlRef,
-    pub clr: ControlRef,
-    pub pc_en: ControlRef,
-    pub ifid_en: ControlRef,
+    pub raw: ControlRef,
+    pub not: ControlRef,
+    pub or: ControlRef,
 }
 impl Control for Hazard {
     fn rasing_edge(&mut self) {
-        self.clr.rasing_edge();
-        self.pc_en.rasing_edge();
-        self.ifid_en.rasing_edge();
+        self.raw.rasing_edge();
+        self.not.rasing_edge();
+        self.or.rasing_edge();
     }
     fn falling_edge(&mut self) {
-        self.pc_enable.falling_edge();
-        self.if_id_enable.falling_edge();
-        self.id_ex_clear.falling_edge();
+        self.raw.falling_edge();
+        self.not.falling_edge();
+        self.or.falling_edge();
     }
-    fn output(&self) -> Vec<(String, u32)> {
-        let mut output = Vec::new();
-        output.extend(self.pc_enable.output());
-        output.extend(self.if_id_enable.output());
-        output.extend(self.id_ex_clear.output());
-        output
-    }
-}
-#[derive(Default, Debug)]
-pub struct PcEnable {
-    pub load_signal: Option<PortRef>,
-    pub ex_rd: Option<PortRef>,
-    pub id_rs1: Option<PortRef>,
-    pub id_rs2: Option<PortRef>,
-}
-
-impl Control for PcEnable {
-    fn output(&self) -> Vec<(String, u32)> {
-        vec![("pc_en".to_string(), self.read())]
-    }
-}
-
-impl Port for PcEnable {
-    fn read(&self) -> u32 {
-        let load_signal = match self.load_signal {
-            Some(ref load_signal) => load_signal.read(),
-            None => {
-                unimplemented!()
-            }
-        };
-        let ex_rd = match self.ex_rd {
-            Some(ref ex_rd) => ex_rd.read(),
-            None => {
-                unimplemented!()
-            }
-        };
-        let id_rs1 = match self.id_rs1 {
-            Some(ref id_rs1) => id_rs1.read(),
-            None => {
-                unimplemented!()
-            }
-        };
-        let id_rs2 = match self.id_rs2 {
-            Some(ref id_rs2) => id_rs2.read(),
-            None => {
-                unimplemented!()
-            }
-        };
-        if load_signal == 1 && (ex_rd == id_rs1 || ex_rd == id_rs2) {
-            0
-        } else {
-            1
-        }
-    }
-}
-
-#[derive(Default, Debug)]
-pub struct IfIdEnable {
-    pub load_signal: Option<PortRef>,
-    pub ex_rd: Option<PortRef>,
-    pub id_rs1: Option<PortRef>,
-    pub id_rs2: Option<PortRef>,
-}
-impl Control for IfIdEnable {
-    fn output(&self) -> Vec<(String, u32)> {
-        vec![("ifid_en".to_string(), self.read())]
-    }
-}
-impl Port for IfIdEnable {
-    fn read(&self) -> u32 {
-        let load_signal = match self.load_signal {
-            Some(ref load_signal) => load_signal.read(),
-            None => {
-                unimplemented!()
-            }
-        };
-        let ex_rd = match self.ex_rd {
-            Some(ref ex_rd) => ex_rd.read(),
-            None => {
-                unimplemented!()
-            }
-        };
-        let id_rs1 = match self.id_rs1 {
-            Some(ref id_rs1) => id_rs1.read(),
-            None => {
-                unimplemented!()
-            }
-        };
-        let id_rs2 = match self.id_rs2 {
-            Some(ref id_rs2) => id_rs2.read(),
-            None => {
-                unimplemented!()
-            }
-        };
-        if load_signal == 1 && (ex_rd == id_rs1 || ex_rd == id_rs2) {
-            0
-        } else {
-            1
-        }
-    }
-}
-
-#[derive(Default, Debug)]
-pub struct IdExClear {
-    pub load_signal: Option<PortRef>,
-    pub npc_sel: Option<PortRef>,
-    pub ex_rd: Option<PortRef>,
-    pub id_rs1: Option<PortRef>,
-    pub id_rs2: Option<PortRef>,
-}
-impl Control for IdExClear {
-    fn output(&self) -> Vec<(String, u32)> {
-        vec![("idex_clr".to_string(), self.read())]
-    }
-}
-impl Port for IdExClear {
-    fn read(&self) -> u32 {
-        let load_signal = match self.load_signal {
-            Some(ref load_signal) => load_signal.read(),
-            None => {
-                unimplemented!()
-            }
-        };
-        let npc_sel = match self.npc_sel {
-            Some(ref npc_sel) => npc_sel.read(),
-            None => {
-                unimplemented!()
-            }
-        };
-        let ex_rd = match self.ex_rd {
-            Some(ref ex_rd) => ex_rd.read(),
-            None => {
-                unimplemented!()
-            }
-        };
-        let id_rs1 = match self.id_rs1 {
-            Some(ref id_rs1) => id_rs1.read(),
-            None => {
-                unimplemented!()
-            }
-        };
-        let id_rs2 = match self.id_rs2 {
-            Some(ref id_rs2) => id_rs2.read(),
-            None => {
-                unimplemented!()
-            }
-        };
-        if load_signal == 1 && (ex_rd == id_rs1 || ex_rd == id_rs2) {
-            1
-        } else if npc_sel == 1 {
-            1
-        } else {
-            0
-        }
+    fn output(&self) -> Vec<(&'static str, u32)> {
+        let mut res = vec![("en", self.not.output()[0].1)];
+        res.extend(self.raw.output());
+        res
     }
 }
 
@@ -309,16 +121,23 @@ mod tests {
         let if_id_enable = builder.alloc(Alloc::IfIdEnable);
         let id_ex_clear = builder.alloc(Alloc::IdExClear);
         let mut consts = ConstsBuilder::default();
-        consts.push(connect.load_signal);
-        consts.push(connect.ex_rd);
-        consts.push(connect.id_rs1);
-        consts.push(connect.id_rs2);
-        consts.push(connect.npc_sel);
-        builder.connect(consts.alloc(ConstsAlloc::Out(0)), Connect::LoadSignal);
-        builder.connect(consts.alloc(ConstsAlloc::Out(1)), Connect::ExRd);
-        builder.connect(consts.alloc(ConstsAlloc::Out(2)), Connect::IdRs1);
-        builder.connect(consts.alloc(ConstsAlloc::Out(3)), Connect::IdRs2);
-        builder.connect(consts.alloc(ConstsAlloc::Out(4)), Connect::NpcSel);
+        builder.connect(
+            consts.alloc(ConstsAlloc::Out(connect.load_signal)),
+            Connect::LoadSignal,
+        );
+        builder.connect(consts.alloc(ConstsAlloc::Out(connect.ex_rd)), Connect::ExRd);
+        builder.connect(
+            consts.alloc(ConstsAlloc::Out(connect.id_rs1)),
+            Connect::IdRs1,
+        );
+        builder.connect(
+            consts.alloc(ConstsAlloc::Out(connect.id_rs2)),
+            Connect::IdRs2,
+        );
+        builder.connect(
+            consts.alloc(ConstsAlloc::Out(connect.npc_sel)),
+            Connect::NpcSel,
+        );
         assert_eq!(pc_enable.read(), alloc.pc_enable);
         assert_eq!(if_id_enable.read(), alloc.if_id_enable);
         assert_eq!(id_ex_clear.read(), alloc.id_ex_clear);

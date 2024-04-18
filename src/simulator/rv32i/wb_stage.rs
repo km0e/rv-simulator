@@ -14,7 +14,11 @@ pub enum Connect {
 pub struct WbStageBuilder {
     pub mux: MuxBuilder,
 }
-
+impl ControlBuilder for WbStageBuilder {
+    fn build(self) -> ControlRef {
+        self.mux.build()
+    }
+}
 impl PortBuilder for WbStageBuilder {
     type Alloc = Alloc;
     type Connect = Connect;

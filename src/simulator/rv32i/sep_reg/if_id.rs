@@ -76,24 +76,16 @@ impl Control for IfId {
         self.pc.falling_edge();
         self.instruction.falling_edge();
     }
-    fn inout(&self) -> Vec<(String, u32, u32)> {
-        let mut res = Vec::new();
-        res.push((
-            "npc".to_string(),
-            self.npc.input()[0].1,
-            self.npc.output()[0].1,
-        ));
-        res.push((
-            "pc".to_string(),
-            self.pc.input()[0].1,
-            self.pc.output()[0].1,
-        ));
-        res.push((
-            "instruction".to_string(),
-            self.instruction.input()[0].1,
-            self.instruction.output()[0].1,
-        ));
-        res
+    fn inout(&self) -> Vec<(&'static str, u32, u32)> {
+        vec![
+            ("npc", self.npc.input()[0].1, self.npc.output()[0].1),
+            ("pc", self.pc.input()[0].1, self.pc.output()[0].1),
+            (
+                "instruction",
+                self.instruction.input()[0].1,
+                self.instruction.output()[0].1,
+            ),
+        ]
     }
 }
 pub mod build {

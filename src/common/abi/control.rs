@@ -62,14 +62,17 @@ impl ControlRef {
     pub fn falling_edge(&self) {
         self.0.borrow_mut().falling_edge()
     }
-    pub fn input(&self) -> Vec<(String, u32)> {
+    pub fn input(&self) -> Vec<(&'static str, u32)> {
         self.0.borrow().input()
     }
-    pub fn output(&self) -> Vec<(String, u32)> {
+    pub fn output(&self) -> Vec<(&'static str, u32)> {
         self.0.borrow().output()
     }
-    pub fn inout(&self) -> Vec<(String, u32, u32)> {
+    pub fn inout(&self) -> Vec<(&'static str, u32, u32)> {
         self.0.borrow().inout()
+    }
+    pub fn inner_signal(&self) -> Vec<(&'static str, u32)> {
+        self.0.borrow().inner_signal()
     }
 }
 
@@ -86,13 +89,16 @@ pub trait Control: Debug {
     fn falling_edge(&mut self) {
         self.rasing_edge();
     }
-    fn input(&self) -> Vec<(String, u32)> {
+    fn input(&self) -> Vec<(&'static str, u32)> {
         unimplemented!("input not implemented")
     }
-    fn output(&self) -> Vec<(String, u32)> {
+    fn output(&self) -> Vec<(&'static str, u32)> {
         unimplemented!("output not implemented")
     }
-    fn inout(&self) -> Vec<(String, u32, u32)> {
+    fn inout(&self) -> Vec<(&'static str, u32, u32)> {
         unimplemented!("inout not implemented")
+    }
+    fn inner_signal(&self) -> Vec<(&'static str, u32)> {
+        unimplemented!("inner_signal not implemented")
     }
 }

@@ -1,20 +1,20 @@
 use crate::common::abi::*;
+use crate::common::build::*;
 pub enum Alloc {
     Out = 0,
 }
 pub enum Connect {
     In = 0,
 }
-#[derive(Clone)]
+
+#[derive(Clone, Debug)]
 pub struct BitBuilder {
-    pub interval: (u8, u8), //[]
-    pub input: Option<PortRef>,
+    pub inner: PortShared<Bit>,
 }
 impl BitBuilder {
     pub fn new(interval: (u8, u8)) -> Self {
         Self {
-            interval,
-            input: None,
+            inner: PortShared::new(Bit::new(interval, bomb().into())),
         }
     }
 }
@@ -22,15 +22,14 @@ impl PortBuilder for BitBuilder {
     type Alloc = Alloc;
     type Connect = Connect;
     fn alloc(&mut self, _id: Self::Alloc) -> PortRef {
-        assert!(self.input.is_some(), "Bit input is not connected");
-        PortRef::from(Bit::new(self.interval, self.input.clone().unwrap()))
+        PortRef::from(self.inner.clone())
     }
     fn connect(&mut self, pin: PortRef, _id: Self::Connect) {
-        self.input = Some(pin);
+        self.inner.borrow_mut().input = pin;
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Bit {
     pub interval: (u8, u8), //[]
     pub input: PortRef,

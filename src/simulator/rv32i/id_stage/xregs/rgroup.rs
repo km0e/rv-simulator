@@ -115,14 +115,14 @@ impl Control for RegGroupControl {
             self.x.borrow_mut().x[self.rd_cache as usize] = self.rd_data_cache;
         }
     }
-    fn input(&self) -> Vec<(String, u32)> {
+    fn input(&self) -> Vec<(&'static str, u32)> {
         vec![
-            ("rd".to_string(), self.rd.read()),
-            ("rd_data".to_string(), self.rd_data.read()),
-            ("write".to_string(), self.write.read()),
+            ("rd", self.rd.read()),
+            ("rd_data", self.rd_data.read()),
+            ("write", self.write.read()),
         ]
     }
-    fn output(&self) -> Vec<(String, u32)> {
+    fn output(&self) -> Vec<(&'static str, u32)> {
         vec![]
     }
 }

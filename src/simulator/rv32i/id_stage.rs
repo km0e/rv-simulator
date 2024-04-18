@@ -153,14 +153,19 @@ mod tests {
     fn run_test(test_alloc: TestAlloc, test_connect: TestConnect) {
         let mut idb = IdStageBuilder::new(0x7ffffff0);
         let mut constb = ConstsBuilder::default();
-        constb.push(test_connect.inst);
-        constb.push(test_connect.rd);
-        constb.push(test_connect.rd_data);
-        constb.push(test_connect.reg_write);
-        idb.connect(constb.alloc(ConstsAlloc::Out(0)), Connect::Inst);
-        idb.connect(constb.alloc(ConstsAlloc::Out(1)), Connect::Rd);
-        idb.connect(constb.alloc(ConstsAlloc::Out(2)), Connect::RdData);
-        idb.connect(constb.alloc(ConstsAlloc::Out(3)), Connect::RegWrite);
+        idb.connect(
+            constb.alloc(ConstsAlloc::Out(test_connect.inst)),
+            Connect::Inst,
+        );
+        idb.connect(constb.alloc(ConstsAlloc::Out(test_connect.rd)), Connect::Rd);
+        idb.connect(
+            constb.alloc(ConstsAlloc::Out(test_connect.rd_data)),
+            Connect::RdData,
+        );
+        idb.connect(
+            constb.alloc(ConstsAlloc::Out(test_connect.reg_write)),
+            Connect::RegWrite,
+        );
         let rs1 = idb.alloc(Alloc::Rs1);
         let rs2 = idb.alloc(Alloc::Rs2);
         let rd = idb.alloc(Alloc::Rd);

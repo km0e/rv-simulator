@@ -134,55 +134,41 @@ impl Control for ExMem {
         self.rd.falling_edge();
         self.mem_read.falling_edge();
     }
-    fn input(&self) -> Vec<(String, u32)> {
-        unimplemented!()
-    }
-    fn inout(&self) -> Vec<(String, u32, u32)> {
-        let mut res = Vec::new();
-        res.push((
-            "reg_write".to_string(),
-            self.reg_write.input()[0].1,
-            self.reg_write.output()[0].1,
-        ));
-        res.push((
-            "wb_sel".to_string(),
-            self.wb_sel.input()[0].1,
-            self.wb_sel.output()[0].1,
-        ));
-        res.push((
-            "mem_write".to_string(),
-            self.mem_write.input()[0].1,
-            self.mem_write.output()[0].1,
-        ));
-        res.push((
-            "mem_read".to_string(),
-            self.mem_read.input()[0].1,
-            self.mem_read.output()[0].1,
-        ));
-        res.push((
-            "npc".to_string(),
-            self.npc.input()[0].1,
-            self.npc.output()[0].1,
-        ));
-        res.push((
-            "alu_res".to_string(),
-            self.alu_res.input()[0].1,
-            self.alu_res.output()[0].1,
-        ));
-        res.push((
-            "rs2_data".to_string(),
-            self.rs2_data.input()[0].1,
-            self.rs2_data.output()[0].1,
-        ));
-        res.push((
-            "rd".to_string(),
-            self.rd.input()[0].1,
-            self.rd.output()[0].1,
-        ));
-        res
-    }
-    fn output(&self) -> Vec<(String, u32)> {
-        unimplemented!()
+    fn inout(&self) -> Vec<(&'static str, u32, u32)> {
+        vec![
+            (
+                "reg_write",
+                self.reg_write.input()[0].1,
+                self.reg_write.output()[0].1,
+            ),
+            (
+                "wb_sel",
+                self.wb_sel.input()[0].1,
+                self.wb_sel.output()[0].1,
+            ),
+            (
+                "mem_write",
+                self.mem_write.input()[0].1,
+                self.mem_write.output()[0].1,
+            ),
+            (
+                "mem_read",
+                self.mem_read.input()[0].1,
+                self.mem_read.output()[0].1,
+            ),
+            ("npc", self.npc.input()[0].1, self.npc.output()[0].1),
+            (
+                "alu_res",
+                self.alu_res.input()[0].1,
+                self.alu_res.output()[0].1,
+            ),
+            (
+                "rs2_data",
+                self.rs2_data.input()[0].1,
+                self.rs2_data.output()[0].1,
+            ),
+            ("rd", self.rd.input()[0].1, self.rd.output()[0].1),
+        ]
     }
 }
 

@@ -9,13 +9,6 @@ pub enum Connect {
 pub struct AddBuilder {
     inner: PortShared<Add>,
 }
-impl AddBuilder {
-    pub fn new() -> Self {
-        Self {
-            inner: PortShared::new(Add::default()),
-        }
-    }
-}
 
 impl PortBuilder for AddBuilder {
     type Alloc = Alloc;
@@ -28,7 +21,7 @@ impl PortBuilder for AddBuilder {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct Add {
     pub input: Vec<PortRef>,
 }
@@ -53,12 +46,9 @@ mod tests {
     fn test_add() {
         let mut tb = AddBuilder::default();
         let mut constant = ConstsBuilder::default();
-        constant.push(1);
-        constant.push(2);
+        tb.connect(constant.alloc(ConstsAlloc::Out(1)), Connect::In(0));
+        tb.connect(constant.alloc(ConstsAlloc::Out(2)), Connect::In(1));
         let t = tb.alloc(Alloc::Out);
-        tb.connect(constant.alloc(ConstsAlloc::Out(0)), Connect::In(0));
-        tb.connect(constant.alloc(ConstsAlloc::Out(1)), Connect::In(1));
-        assert_eq!(t.read(), 3);
         assert_eq!(t.read(), 3);
     }
 }

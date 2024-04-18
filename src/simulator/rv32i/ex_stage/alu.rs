@@ -57,8 +57,8 @@ pub struct Alu {
     pub alu_ctl: Option<PortRef>,
 }
 impl Control for Alu {
-    fn output(&self) -> Vec<(String, u32)> {
-        vec![("res".to_string(), self.read())]
+    fn output(&self) -> Vec<(&'static str, u32)> {
+        vec![("res", self.read())]
     }
 }
 impl Port for Alu {
@@ -72,8 +72,8 @@ impl Port for Alu {
             0 => 0,
             1 => match (alu_ctl >> 1) & 0b111 {
                 0 => match (alu_ctl >> 4) & 0b1 {
-                    0 => i1 + i2,
-                    1 => i1 - i2,
+                    0 => i1.wrapping_add(i2),
+                    1 => i1.wrapping_sub(i2),
                     _ => panic!("Invalid ALU control signal"),
                 },
                 1 => i1 << (u2 & 0b11111),
@@ -102,12 +102,9 @@ mod tests {
     fn test_alu() {
         let mut alub = AluBuilder::default();
         let mut consts = ConstsBuilder::default();
-        consts.push(1);
-        consts.push(2);
-        consts.push(0b1);
-        alub.connect(consts.alloc(ConstsAlloc::Out(0)), Connect::Op1);
-        alub.connect(consts.alloc(ConstsAlloc::Out(1)), Connect::Op2);
-        alub.connect(consts.alloc(ConstsAlloc::Out(2)), Connect::Ctrl);
+        alub.connect(consts.alloc(ConstsAlloc::Out(1)), Connect::Op1);
+        alub.connect(consts.alloc(ConstsAlloc::Out(2)), Connect::Op2);
+        alub.connect(consts.alloc(ConstsAlloc::Out(1)), Connect::Ctrl);
         assert_eq!(alub.alloc(Alloc::Res).read(), 3);
     }
 }

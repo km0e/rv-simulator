@@ -33,9 +33,9 @@ impl PortBuilder for RegBuilder {
     type Connect = Connect;
     fn connect(&mut self, pin: PortRef, id: Self::Connect) {
         match id {
-            Self::Connect::In => self.inner.borrow_mut().in_ = Some(pin),
-            Self::Connect::Enable => self.inner.borrow_mut().enable = Some(pin),
-            Self::Connect::Clear => self.inner.borrow_mut().clear = Some(pin),
+            Self::Connect::In => self.inner.borrow_mut().input = pin,
+            Self::Connect::Enable => self.inner.borrow_mut().enable = pin,
+            Self::Connect::Clear => self.inner.borrow_mut().clear = pin,
         }
     }
     fn alloc(&mut self, _: Self::Alloc) -> PortRef {
@@ -43,52 +43,67 @@ impl PortBuilder for RegBuilder {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Reg {
-    pub in_: Option<PortRef>,
-    pub enable: Option<PortRef>,
-    pub clear: Option<PortRef>,
+    pub input: PortRef,
+    pub enable: PortRef,
+    pub en_cache: u32,
+    pub clear: PortRef,
+    pub clr_cache: u32,
     pub data: u32,
     pub output: PortShared<Lat>,
 }
-impl Control for Reg {
-    fn rasing_edge(&mut self) {
-        if self
-            .enable
-            .as_ref()
-            .expect("reg enable not connected")
-            .read()
-            == 0
-        {
-            return;
-        }
-        if let Some(in_) = self.in_.as_ref() {
-            self.data = in_.read();
+impl Reg {
+    pub fn new(value: u32) -> Self {
+        Self {
+            output: PortShared::new(Lat::new(value)),
+            en_cache: 1,
+            clr_cache: 0,
+            input: bomb().into(),
+            enable: bomb().into(),
+            clear: bomb().into(),
+            data: value,
         }
     }
-    fn falling_edge(&mut self) {
-        if let Some(clear) = self.clear.as_ref() {
-            if clear.read() == 1 {
-                self.output.borrow_mut().data = 0;
-                return;
-            }
+}
+impl Default for Reg {
+    fn default() -> Self {
+        Self::new(0)
+    }
+}
+impl Control for Reg {
+    fn rasing_edge(&mut self) {
+        if self.clear.read() == 1 {
+            self.clr_cache = 1;
+            return;
         }
-        if let Some(enable) = self.enable.as_ref() {
-            if enable.read() == 0 {
-                return;
-            }
+        if self.enable.read() == 0 {
+            self.en_cache = 0;
+            return;
+        }
+        self.data = self.input.read();
+    }
+    fn falling_edge(&mut self) {
+        if self.clr_cache == 1 {
+            self.output.borrow_mut().data = 0;
+            self.clr_cache = 0;
+            return;
+        }
+        if self.en_cache == 0 {
+            self.en_cache = 1;
+            return;
         }
         self.output.borrow_mut().data = self.data;
     }
-    fn input(&self) -> Vec<(String, u32)> {
-        let mut res = vec![];
-        res.push(("in".to_string(), self.in_.as_ref().unwrap().read()));
-        res.push(("en".to_string(), self.enable.as_ref().unwrap().read()));
-        res.push(("clr".to_string(), self.clear.as_ref().unwrap().read()));
-        res
+    fn input(&self) -> Vec<(&'static str, u32)> {
+        vec![
+            ("in", self.input.read()),
+            ("en", self.enable.read()),
+            ("clr", self.clear.read()),
+        ]
     }
-    fn output(&self) -> Vec<(String, u32)> {
-        vec![("out".to_string(), self.output.borrow().data)]
+    fn output(&self) -> Vec<(&'static str, u32)> {
+        vec![("out", self.output.borrow().data)]
     }
 }
 pub mod build {
@@ -105,13 +120,10 @@ mod tests {
     fn test_reg() {
         let mut tb = RegBuilder::new(1);
         let mut constant = ConstsBuilder::default();
-        constant.push(2);
-        constant.push(1);
-        constant.push(1);
-        tb.connect(constant.alloc(ConstsAlloc::Out(0)), Connect::In);
+        tb.connect(constant.alloc(ConstsAlloc::Out(2)), Connect::In);
         let t = tb.alloc(RegAlloc::Out);
         tb.connect(constant.alloc(ConstsAlloc::Out(1)), Connect::Enable);
-        tb.connect(constant.alloc(ConstsAlloc::Out(2)), Connect::Clear);
+        tb.connect(constant.alloc(ConstsAlloc::Out(0)), Connect::Clear);
         let tc = tb.build();
         assert_eq!(t.read(), 1);
         tc.rasing_edge();

@@ -55,13 +55,13 @@ impl ExStageBuilder {
         let mut branch = BranchBuilder::default();
         let mut forward = ForwardBuilder::default();
         let mut alu = AluBuilder::default();
-        pc_sel.connect(fwd_mux_1.alloc(MuxAlloc::Out), MuxConnect::In(0));
-        imm_sel.connect(fwd_mux_2.alloc(MuxAlloc::Out), MuxConnect::In(0));
-        alu.connect(pc_sel.alloc(MuxAlloc::Out), AluConnect::Op1);
-        alu.connect(imm_sel.alloc(MuxAlloc::Out), AluConnect::Op2);
+        fwd_mux_1.connect(forward.alloc(ForwardAlloc::Forward1), MuxConnect::Select);
         branch.connect(fwd_mux_1.alloc(MuxAlloc::Out), BranchConnect::Op1);
         branch.connect(fwd_mux_2.alloc(MuxAlloc::Out), BranchConnect::Op2);
-        fwd_mux_1.connect(forward.alloc(ForwardAlloc::Forward1), MuxConnect::Select);
+        pc_sel.connect(fwd_mux_1.alloc(MuxAlloc::Out), MuxConnect::In(0));
+        alu.connect(pc_sel.alloc(MuxAlloc::Out), AluConnect::Op1);
+        alu.connect(imm_sel.alloc(MuxAlloc::Out), AluConnect::Op2);
+        imm_sel.connect(fwd_mux_2.alloc(MuxAlloc::Out), MuxConnect::In(0));
         fwd_mux_2.connect(forward.alloc(ForwardAlloc::Forward2), MuxConnect::Select);
         ExStageBuilder {
             fwd_mux_1,
@@ -143,13 +143,24 @@ pub struct Exstage {
     pub alu: ControlRef,
 }
 impl Control for Exstage {
-    fn output(&self) -> Vec<(String, u32)> {
+    fn output(&self) -> Vec<(&'static str, u32)> {
         let mut res = Vec::new();
         res.extend(self.branch.output());
         res.extend(self.alu.output());
         res.extend(self.forward.output());
         res.extend(self.fwd_mux_1.output());
         res.extend(self.fwd_mux_2.output());
+        res
+    }
+    fn inner_signal(&self) -> Vec<(&'static str, u32)> {
+        let mut res = vec![
+            ("fwd1_data", self.fwd_mux_1.output()[0].1),
+            ("fwd2_data", self.fwd_mux_2.output()[0].1),
+            ("op1", self.pc_sel.output()[0].1),
+            ("op2", self.imm_sel.output()[0].1),
+            ("npc_en", self.branch.output()[0].1),
+        ];
+        res.extend(self.forward.output());
         res
     }
 }
@@ -197,42 +208,66 @@ mod tests {
         let alu_op1 = tb.pc_sel.alloc(MuxAlloc::Out);
         let alu_op2 = tb.imm_sel.alloc(MuxAlloc::Out);
         let mut constant = ConstsBuilder::default();
-        constant.push(connect.jal_);
-        constant.push(connect.branch_sel);
-        constant.push(connect.pc_sel);
-        constant.push(connect.imm_sel);
-        constant.push(connect.alu_ctrl);
-        constant.push(connect.branch_type);
-        constant.push(connect.pc);
-        constant.push(connect.rs1_data);
-        constant.push(connect.rs2_data);
-        constant.push(connect.imm);
-        constant.push(connect.rs1);
-        constant.push(connect.rs2);
-        constant.push(connect.rd_mem);
-        constant.push(connect.rd_mem_write);
-        constant.push(connect.rd_mem_data);
-        constant.push(connect.rd_wb);
-        constant.push(connect.rd_wb_write);
-        constant.push(connect.rd_wb_data);
-        tb.connect(constant.alloc(ConstsAlloc::Out(0)), Connect::Jal_);
-        tb.connect(constant.alloc(ConstsAlloc::Out(1)), Connect::BranchEn);
-        tb.connect(constant.alloc(ConstsAlloc::Out(2)), Connect::PcSel);
-        tb.connect(constant.alloc(ConstsAlloc::Out(3)), Connect::ImmSel);
-        tb.connect(constant.alloc(ConstsAlloc::Out(4)), Connect::AluCtrl);
-        tb.connect(constant.alloc(ConstsAlloc::Out(5)), Connect::BranchType);
-        tb.connect(constant.alloc(ConstsAlloc::Out(6)), Connect::Pc);
-        tb.connect(constant.alloc(ConstsAlloc::Out(7)), Connect::Rs1Data);
-        tb.connect(constant.alloc(ConstsAlloc::Out(8)), Connect::Rs2Data);
-        tb.connect(constant.alloc(ConstsAlloc::Out(9)), Connect::Imm);
-        tb.connect(constant.alloc(ConstsAlloc::Out(10)), Connect::Rs1);
-        tb.connect(constant.alloc(ConstsAlloc::Out(11)), Connect::Rs2);
-        tb.connect(constant.alloc(ConstsAlloc::Out(12)), Connect::RdMem);
-        tb.connect(constant.alloc(ConstsAlloc::Out(13)), Connect::RdMemWrite);
-        tb.connect(constant.alloc(ConstsAlloc::Out(14)), Connect::RdMemData);
-        tb.connect(constant.alloc(ConstsAlloc::Out(15)), Connect::RdWb);
-        tb.connect(constant.alloc(ConstsAlloc::Out(16)), Connect::RdWbWrite);
-        tb.connect(constant.alloc(ConstsAlloc::Out(17)), Connect::RdWbData);
+        tb.connect(
+            constant.alloc(ConstsAlloc::Out(connect.jal_)),
+            Connect::Jal_,
+        );
+        tb.connect(
+            constant.alloc(ConstsAlloc::Out(connect.branch_sel)),
+            Connect::BranchEn,
+        );
+        tb.connect(
+            constant.alloc(ConstsAlloc::Out(connect.pc_sel)),
+            Connect::PcSel,
+        );
+        tb.connect(
+            constant.alloc(ConstsAlloc::Out(connect.imm_sel)),
+            Connect::ImmSel,
+        );
+        tb.connect(
+            constant.alloc(ConstsAlloc::Out(connect.alu_ctrl)),
+            Connect::AluCtrl,
+        );
+        tb.connect(
+            constant.alloc(ConstsAlloc::Out(connect.branch_type)),
+            Connect::BranchType,
+        );
+        tb.connect(constant.alloc(ConstsAlloc::Out(connect.pc)), Connect::Pc);
+        tb.connect(
+            constant.alloc(ConstsAlloc::Out(connect.rs1_data)),
+            Connect::Rs1Data,
+        );
+        tb.connect(
+            constant.alloc(ConstsAlloc::Out(connect.rs2_data)),
+            Connect::Rs2Data,
+        );
+        tb.connect(constant.alloc(ConstsAlloc::Out(connect.imm)), Connect::Imm);
+        tb.connect(constant.alloc(ConstsAlloc::Out(connect.rs1)), Connect::Rs1);
+        tb.connect(constant.alloc(ConstsAlloc::Out(connect.rs2)), Connect::Rs2);
+        tb.connect(
+            constant.alloc(ConstsAlloc::Out(connect.rd_mem)),
+            Connect::RdMem,
+        );
+        tb.connect(
+            constant.alloc(ConstsAlloc::Out(connect.rd_mem_write)),
+            Connect::RdMemWrite,
+        );
+        tb.connect(
+            constant.alloc(ConstsAlloc::Out(connect.rd_mem_data)),
+            Connect::RdMemData,
+        );
+        tb.connect(
+            constant.alloc(ConstsAlloc::Out(connect.rd_wb)),
+            Connect::RdWb,
+        );
+        tb.connect(
+            constant.alloc(ConstsAlloc::Out(connect.rd_wb_write)),
+            Connect::RdWbWrite,
+        );
+        tb.connect(
+            constant.alloc(ConstsAlloc::Out(connect.rd_wb_data)),
+            Connect::RdWbData,
+        );
         assert_eq!(bk.read(), alloc.branch_sel);
         assert_eq!(fwd_1.read(), alloc.fwd_1);
         assert_eq!(fwd_2.read(), alloc.fwd_2);

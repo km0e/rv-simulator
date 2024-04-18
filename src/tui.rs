@@ -34,6 +34,7 @@ pub struct App {
     simulator: Rv32i,
     exit: bool,
     cycle: usize,
+    tab: usize,
 }
 
 impl App {
@@ -42,6 +43,7 @@ impl App {
             simulator: sm,
             exit: false,
             cycle: 0,
+            tab: 0,
         }
     }
     /// runs the application's main loop until the user quits
@@ -74,7 +76,11 @@ impl App {
             .zip([" IF/ID ", " ID/EX ", " EX/MEM ", " MEM/WB "].iter())
             .for_each(|((chunk, signal), title)| {
                 let rows = signal.into_iter().map(|(n, in_, out)| {
-                    Row::new(vec![n, format!("{:x}", in_), format!("{:x}", out)])
+                    Row::new(vec![
+                        n.to_string(),
+                        format!("{:x}", in_),
+                        format!("{:x}", out),
+                    ])
                 });
                 let table = Table::new(
                     rows,
@@ -95,45 +101,31 @@ impl App {
                 Widget::render(table, *chunk, buffer);
             });
     }
-    fn render_asm(&self, chunk: Rect, buffer: &mut Buffer) {
-        let rows = self
-            .simulator
-            .asm
-            .read(chunk.height as usize)
-            .into_iter()
-            .map(|asm| Row::new(vec![asm.stage.to_string(), asm.asm]))
-            .collect::<Vec<_>>();
-        let table = Table::new(rows, [Constraint::Length(10), Constraint::Percentage(95)])
-            .block(
-                Block::default()
-                    .title(" ASM ")
-                    .title_alignment(Alignment::Center)
-                    .borders(Borders::ALL),
-            )
-            .header(Row::new(vec!["Stage", "Instruction"]))
-            .column_spacing(1);
-        Widget::render(table, chunk, buffer);
-    }
     fn render_stage(&self, chunk: Rect, buffer: &mut Buffer) {
         let chunks = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
             .split(chunk);
+
         let rows = self
             .simulator
             .ex
-            .output()
+            .inner_signal()
             .into_iter()
-            .map(|(name, value)| Row::new(vec![name, format!("{:x}", value)]))
+            .map(|(name, value)| Row::new(vec![name.to_string(), format!("{:x}", value)]))
             .collect::<Vec<_>>();
-        let table = Table::new(rows, [Constraint::Length(10), Constraint::Percentage(95)])
-            .block(
-                Block::default()
-                    .title(" EX ")
-                    .title_alignment(Alignment::Center)
-                    .borders(Borders::NONE),
-            )
-            .column_spacing(1);
+        let table = Table::new(
+            rows,
+            [Constraint::Percentage(50), Constraint::Percentage(50)],
+        )
+        .block(
+            Block::default()
+                .title(" EX ")
+                .title_alignment(Alignment::Center)
+                .borders(Borders::ALL),
+        )
+        .header(Row::new(vec!["Name", "Value"]))
+        .column_spacing(1);
         Widget::render(table, chunks[0], buffer);
 
         let rows = self
@@ -141,29 +133,74 @@ impl App {
             .hazard
             .output()
             .into_iter()
-            .map(|(name, value)| Row::new(vec![name, format!("{:x}", value)]))
+            .map(|(name, value)| Row::new(vec![name.to_string(), format!("{:x}", value)]))
             .collect::<Vec<_>>();
-        let table = Table::new(rows, [Constraint::Length(10), Constraint::Percentage(95)])
-            .block(
-                Block::default()
-                    .title(" Hazard ")
-                    .title_alignment(Alignment::Center)
-                    .borders(Borders::NONE),
-            )
-            .column_spacing(1);
+        let table = Table::new(
+            rows,
+            [Constraint::Percentage(50), Constraint::Percentage(50)],
+        )
+        .block(
+            Block::default()
+                .title(" Hazard ")
+                .title_alignment(Alignment::Center)
+                .borders(Borders::ALL),
+        )
+        .header(Row::new(vec!["Name", "Value"]))
+        .column_spacing(1);
         Widget::render(table, chunks[1], buffer);
+    }
+    fn render_asm(&self, chunk: Rect, buffer: &mut Buffer) {
+        let rows = self
+            .simulator
+            .asm
+            .read(chunk.height as usize)
+            .into_iter()
+            .map(|inst| {
+                Row::new(vec![
+                    Line::from(inst.stage.to_string()).alignment(Alignment::Right),
+                    Line::from(inst.asm.to_string()).alignment(Alignment::Left),
+                ])
+            })
+            .collect::<Vec<_>>();
+        let table = Table::new(
+            rows,
+            [Constraint::Percentage(30), Constraint::Percentage(70)],
+        )
+        .block(
+            Block::default()
+                .title(" ASM ")
+                .title_alignment(Alignment::Center)
+                .borders(Borders::ALL),
+        )
+        .header(Row::new(vec![
+            Line::from("Stage").alignment(Alignment::Center),
+            Line::from("Instruction").alignment(Alignment::Center),
+        ]))
+        .column_spacing(1);
+        Widget::render(table, chunk, buffer);
+    }
+
+    fn render_taps(&self, chunk: Rect, buffer: &mut Buffer) {
+        let tabs = Tabs::new(vec!["Sep Reg", "Signal", "Asm"])
+            .highlight_style(Style::default().fg(Color::Yellow))
+            .select(self.tab);
+        tabs.render(chunk, buffer);
     }
     fn render_frame(&self, frame: &mut Frame) {
         let chunck = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
+                Constraint::Length(1),
                 Constraint::Length(24),
-                Constraint::Length(8),
                 Constraint::Fill(1),
             ])
             .split(frame.size());
-        self.render_seps(chunck[0], frame.buffer_mut());
-        self.render_stage(chunck[1], frame.buffer_mut());
+        self.render_taps(chunck[0], frame.buffer_mut());
+        match self.tab {
+            0 => self.render_seps(chunck[1], frame.buffer_mut()),
+            1 => self.render_stage(chunck[1], frame.buffer_mut()),
+            _ => {}
+        }
         self.render_asm(chunck[2], frame.buffer_mut());
     }
 
@@ -183,6 +220,7 @@ impl App {
     fn handle_key_event(&mut self, key_event: KeyEvent) {
         match key_event.code {
             KeyCode::Char('q') => self.exit(),
+            KeyCode::Tab => self.tab = (self.tab + 1) % 3,
             KeyCode::Left => self.prec_cycle(),
             KeyCode::Right => self.next_cycle(),
             _ => {}
@@ -199,6 +237,9 @@ impl App {
         self.cycle += 1;
     }
     fn prec_cycle(&mut self) {
+        if self.cycle == 0 {
+            return;
+        }
         self.simulator = self.simulator.reset();
         self.cycle -= 1;
         for _ in 0..self.cycle {

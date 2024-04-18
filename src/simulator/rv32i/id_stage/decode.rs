@@ -78,17 +78,17 @@ mod tests {
         let mut constant = ConstsBuilder::default();
         // 0000000 | 00001 | 00010 | 000 | 00011 | 0110011
         //    0    |   1   |   2   |  0  |   3   | 0110011
-        constant.push(0b00000000000100010000000110110011);
+        let inst = 0b00000000000100010000000110110011;
         let rs1 = tb.alloc(Alloc::Rs1);
         let rs2 = tb.alloc(Alloc::Rs2);
         let rd = tb.alloc(Alloc::Rd);
         let opcode = tb.alloc(Alloc::Opcode);
-        tb.connect(constant.alloc(ConstsAlloc::Out(0)), Connect::Inst);
+        tb.connect(constant.alloc(ConstsAlloc::Out(inst)), Connect::Inst);
         assert_eq!(rs1.read(), 2);
         assert_eq!(rs2.read(), 1);
         assert_eq!(rd.read(), 3);
         // assert_eq!(opcode.read(), 0b0110011);//todo pack opcode
-        assert_eq!(opcode.read(), 0b00000000000100010000000110110011); //todo pack opcode
+        assert_eq!(opcode.read(), inst); //todo pack opcode
     }
     #[test]
     fn test_decode2() {
@@ -97,12 +97,11 @@ mod tests {
         let mut constant = ConstsBuilder::default();
         // 0000001 | 01000 | 00000 | 000 | 00000 | 1101111
         //    1    |   8   |   0   |  0  |   0   | 1101111
-        constant.push(instruction);
         let rs1 = tb.alloc(Alloc::Rs1);
         let rs2 = tb.alloc(Alloc::Rs2);
         let rd = tb.alloc(Alloc::Rd);
         let opcode = tb.alloc(Alloc::Opcode);
-        tb.connect(constant.alloc(ConstsAlloc::Out(0)), Connect::Inst);
+        tb.connect(constant.alloc(ConstsAlloc::Out(instruction)), Connect::Inst);
         assert_eq!(rs1.read(), 0);
         assert_eq!(rs2.read(), 8);
         assert_eq!(rd.read(), 0);
