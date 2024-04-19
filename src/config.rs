@@ -9,14 +9,14 @@ pub struct Program {
     pub asm: String,
     pub entry: usize,
 }
-pub fn init() -> Result<Program, ()> {
+pub fn init() -> Result<Program, String> {
     let args = args::init();
     let file = file::init();
     let compiler = args.compiler_path.unwrap_or(file.compiler);
     let objdump = args.objdump_path.unwrap_or(file.objdump);
     let file = args.file.unwrap_or(file.file);
     let mut pg = Program::default();
-    let status = Command::new(compiler)
+    let output = Command::new(compiler)
         .args([
             "-march=rv32i",
             "-mabi=ilp32",
@@ -28,12 +28,12 @@ pub fn init() -> Result<Program, ()> {
             "-nostartfiles",
         ])
         .arg(file)
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .output()
         .unwrap();
-    if !status.success() {
-        return Err(());
+    if !output.status.success() {
+        return Err(output.stderr.iter().map(|&x| x as char).collect());
     }
     let dat = std::fs::read("a.out").unwrap();
     match Object::parse(&dat).unwrap() {
@@ -51,14 +51,16 @@ pub fn init() -> Result<Program, ()> {
                 }
             }
         }
-        _ => return Err(()),
+        _ => return Err("Not an ELF file".to_string()),
     }
     let status = Command::new(objdump)
         .args(["-d", "a.out", "-M", "numeric"])
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
         .output()
         .unwrap();
     if !status.status.success() {
-        return Err(());
+        return Err(status.stderr.iter().map(|&x| x as char).collect());
     }
     remove_file("a.out").unwrap();
     let stdout = String::from_utf8(status.stdout).unwrap();
