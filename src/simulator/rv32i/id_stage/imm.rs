@@ -60,6 +60,9 @@ impl Port for Imm {
                     | ((input) & 0b11111111000000000000)
                     | ((input >> 10) & 0b100000000000000000000)
             }
+            //u-type
+            //don't need to shift, just leave it to alu to handle
+            0b001_0111 | 0b011_0111 => input & 0xFFFFF000u32 as i32,
             _ => input >> 12,
         };
         output as u32

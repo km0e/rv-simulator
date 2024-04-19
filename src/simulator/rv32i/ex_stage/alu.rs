@@ -76,7 +76,11 @@ impl Port for Alu {
                     1 => i1.wrapping_sub(i2),
                     _ => panic!("Invalid ALU control signal"),
                 },
-                1 => i1 << (u2 & 0b11111),
+                1 => match (alu_ctl >> 4) & 0b1 {
+                    0 => i1 << (u2 & 0b11111),
+                    1 => i2,
+                    _ => panic!("Invalid ALU control signal"),
+                },
                 2 => (i1 < i2).into(),
                 3 => (u1 < u2).into(),
                 4 => i1 ^ i2,

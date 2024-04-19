@@ -38,7 +38,7 @@ trait AsmPort: Control + Debug {
     fn read(&self, len_hint: usize) -> Vec<Inst>;
 }
 #[derive(Default)]
-pub struct AsmPortShared<T: 'static + AsmPort>(Shared<T>);
+struct AsmPortShared<T: 'static + AsmPort>(Shared<T>);
 impl<T: 'static + AsmPort> AsmPortShared<T> {
     pub fn new(asm: T) -> Self {
         Self(asm.into())
@@ -120,7 +120,7 @@ impl AsmMemory {
                 continue;
             }
             if head {
-                let (faddr, fname) = line.split_once(" ").unwrap();
+                let (faddr, fname) = line.split_once(' ').unwrap();
                 func.addr = usize::from_str_radix(faddr, 16).unwrap();
                 func.name = fname[1..fname.len() - 2].to_string();
                 funcs.push(func.clone());

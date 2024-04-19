@@ -3,7 +3,6 @@ mod asm;
 mod bit;
 mod bomb;
 mod consts;
-mod error;
 mod lat;
 mod memory;
 mod mux;
