@@ -1,5 +1,5 @@
 use goblin::{elf, Object};
-use std::process::Command;
+use std::{fs::remove_file, process::Command};
 mod args;
 mod file;
 #[derive(Debug, Default, Clone)]
@@ -60,6 +60,7 @@ pub fn init() -> Result<Program, ()> {
     if !status.status.success() {
         return Err(());
     }
+    remove_file("a.out").unwrap();
     let stdout = String::from_utf8(status.stdout).unwrap();
     let pos = stdout.find("Disassembly of section .text:").unwrap();
     pg.asm = stdout[pos + 30..].to_string();
