@@ -10,17 +10,22 @@ pub struct Mem {
 impl Mem {
     pub fn with_data(addr: usize, data: Vec<u8>) -> Self {
         let mut mem = HashMap::new();
-        let mut start = 0;
-        while start + PAGE_SIZE < data.len() {
-            let mut page = [0; PAGE_SIZE];
-            page.copy_from_slice(&data[start..start + PAGE_SIZE]);
-            mem.insert(addr + start / PAGE_SIZE, page);
-            start += PAGE_SIZE;
-        }
+        let mut moffset = 0;
+        let offset = addr % PAGE_SIZE;
+        let mut size = PAGE_SIZE - (offset);
+        size = if size > data.len() { data.len() } else { size };
         let mut page = [0; PAGE_SIZE];
-        page[..data.len() - start].copy_from_slice(&data[start..]);
-        mem.insert(addr + start / PAGE_SIZE, page);
-
+        page[offset..offset + size].copy_from_slice(&data[moffset..moffset + size]);
+        moffset += size;
+        mem.insert(addr / PAGE_SIZE, page);
+        while moffset + PAGE_SIZE < data.len() {
+            let mut page = [0; PAGE_SIZE];
+            page.copy_from_slice(&data[moffset..moffset + PAGE_SIZE]);
+            mem.insert((addr + moffset) / PAGE_SIZE, page);
+            moffset += PAGE_SIZE;
+        }
+        page[..data.len() - moffset].copy_from_slice(&data[moffset..]);
+        mem.insert((addr + moffset) / PAGE_SIZE, page);
         Self { data: mem }
     }
 }

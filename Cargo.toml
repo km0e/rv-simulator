@@ -8,4 +8,7 @@ edition = "2021"
 [dependencies]
 crossterm = "0.27.0"
 ratatui = "0.26.1"
-toml = "0.8.12"
+serde = { version = "1.0.198", features = ["derive"] }
+xcfg-rs = { version = "0.2.3", features = ["yaml", "toml"] }
+clap = { version = "4.5.4", features = ["derive"] }
+goblin = "0.8.0"

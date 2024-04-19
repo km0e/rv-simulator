@@ -1,5 +1,6 @@
 use crate::common::abi::*;
 use crate::common::build::*;
+use crate::config::Program;
 mod ex_stage;
 mod hazard;
 mod id_stage;
@@ -36,14 +37,14 @@ pub struct Rv32iBuilder {
     pub ex_mem: ExMemBuilder,
     pub mem_wb: MemWbBuilder,
     pub asm: AsmMemBuilder,
-    pub membak: (Vec<u8>, Vec<String>),
+    pub pgbak: Program,
 }
 
 impl Rv32iBuilder {
-    fn connect(inst_mem: Vec<u8>, asm_mem: Vec<String>) -> Self {
+    fn connect(pg: crate::config::Program) -> Self {
         // let inst_mem = inst_mem.into_iter().flat_map(|x| x.to_ne_bytes()).collect();
         let mut consts = ConstsBuilder::default();
-        let mut if_stage = IfStageBuilder::new(0, inst_mem.clone());
+        let mut if_stage = IfStageBuilder::new(pg.entry as u32, pg.start as u32, pg.insts.clone());
         let mut if_id = IfIdBuilder::default();
         let mut id_stage = IdStageBuilder::new(0x7FFFFFF0);
         let mut id_ex = IdExBuilder::default();
@@ -161,7 +162,7 @@ impl Rv32iBuilder {
         mem_wb.connect(consts.alloc(ConstsAlloc::Out(1)), MemWbConnect::Enable);
         mem_wb.connect(consts.alloc(ConstsAlloc::Out(0)), MemWbConnect::Clear);
         //asm
-        let mut asm = AsmMemBuilder::new(asm_mem.clone());
+        let mut asm = AsmMemBuilder::new(pg.entry, pg.asm.clone());
         asm.connect(if_stage.npc_mux.alloc(MuxAlloc::Out), AsmConnect::Address);
         asm.connect(hazard.alloc(HazardAlloc::PcEnable), AsmConnect::IfEn);
         asm.connect(hazard.alloc(HazardAlloc::IfIdEnable), AsmConnect::IdEn);
@@ -180,11 +181,11 @@ impl Rv32iBuilder {
             ex_mem,
             mem_wb,
             asm,
-            membak: (inst_mem, asm_mem),
+            pgbak: pg,
         }
     }
-    pub fn new(inst_mem: Vec<u8>, asm_mem: Vec<String>) -> Self {
-        Self::connect(inst_mem, asm_mem)
+    pub fn new(pg: Program) -> Self {
+        Self::connect(pg)
     }
     pub fn slf_build(self) -> Rv32i {
         Rv32i {
@@ -198,14 +199,14 @@ impl Rv32iBuilder {
             mem_wb: self.mem_wb.build(),
             hazard: self.hazard.build(),
             asm: self.asm.build(),
-            membak: self.membak,
+            pgbak: self.pgbak,
         }
     }
 }
 
 #[derive(Debug)]
 pub struct Rv32i {
-    pub membak: (Vec<u8>, Vec<String>),
+    pub pgbak: Program,
     pub if_stage: ControlRef,
     pub id_stage: ControlRef,
     pub mem_stage: ControlRef,
@@ -219,7 +220,7 @@ pub struct Rv32i {
 }
 impl Rv32i {
     pub fn reset(&self) -> Rv32i {
-        Rv32iBuilder::connect(self.membak.0.clone(), self.membak.1.clone()).slf_build()
+        Rv32iBuilder::connect(self.pgbak.clone()).slf_build()
     }
 }
 impl Control for Rv32i {

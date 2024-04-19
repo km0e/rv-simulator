@@ -1,4 +1,7 @@
 pub mod abi;
 mod component;
-pub use component::build;
 pub mod utils;
+
+pub mod build {
+    pub use super::component::build::*;
+}

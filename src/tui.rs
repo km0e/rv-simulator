@@ -157,8 +157,8 @@ impl App {
             .into_iter()
             .map(|inst| {
                 Row::new(vec![
-                    Line::from(inst.stage.to_string()).alignment(Alignment::Right),
-                    Line::from(inst.asm.to_string()).alignment(Alignment::Left),
+                    Span::from(inst.stage.to_string()).to_right_aligned_line(),
+                    Span::from(inst.asm.to_string()).to_left_aligned_line(),
                 ])
             })
             .collect::<Vec<_>>();

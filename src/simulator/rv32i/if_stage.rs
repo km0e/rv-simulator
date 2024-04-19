@@ -19,7 +19,7 @@ pub struct IfStageBuilder {
     pub imem: MemBuilder,
 }
 impl IfStageBuilder {
-    pub fn new(entry: u32, instruction_memory: Vec<u8>) -> Self {
+    pub fn new(entry: u32, start: u32, inst_mem: Vec<u8>) -> Self {
         // add if stage
         let mut consts = ConstsBuilder::default();
         let mut if_pc_inc = MuxBuilder::default();
@@ -30,7 +30,7 @@ impl IfStageBuilder {
         pc.connect(consts.alloc(ConstsAlloc::Out(0)), RegConnect::Clear);
         let mut add = AddBuilder::default();
         add.connect(if_pc_inc.alloc(MuxAlloc::Out), AddConnect::In(0));
-        let mut imem = MemBuilder::with_data(0, instruction_memory);
+        let mut imem = MemBuilder::with_data(start as usize, inst_mem);
         imem.connect(consts.alloc(ConstsAlloc::Out(0)), MemConnect::WriteEn);
         imem.connect(consts.alloc(ConstsAlloc::Out(1)), MemConnect::ReadEn);
         imem.connect(consts.alloc(ConstsAlloc::Out(1)), MemConnect::Data);
@@ -108,7 +108,7 @@ mod tests {
     #[test]
     fn test_generate_if() {
         let text = b"abcdefgh".to_vec();
-        let mut ifb = IfStageBuilder::new(0, text.to_vec());
+        let mut ifb = IfStageBuilder::new(0, 0, text.to_vec());
         let mut consts = ConstsBuilder::default();
         ifb.npc_mux
             .connect(consts.alloc(ConstsAlloc::Out(0)), MuxConnect::Select);

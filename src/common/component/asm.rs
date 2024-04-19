@@ -1,9 +1,14 @@
 use crate::common::abi::*;
 use crate::common::build::*;
+use std::collections::BTreeMap;
 use std::{cell::RefCell, collections::BTreeSet, fmt::Debug, rc::Rc};
 mod reg;
 // pub use reg::Alloc;
-
+#[derive(Debug, Clone)]
+pub struct Func {
+    pub name: String,
+    pub addr: usize,
+}
 pub enum Stage {
     None,
     Fetch,
@@ -85,6 +90,51 @@ pub enum Connect {
     IdClr,
     ExClr,
 }
+#[derive(Debug)]
+pub struct AsmMemory {
+    pub func: Vec<Func>,
+    pub data: BTreeMap<usize, String>,
+}
+impl AsmMemory {
+    // Path: src/common/asm.rs
+    // resolve the asm string to a AsmMemory struct
+    // format:
+    // #empty line
+    // 0x00000000 <_start>:
+    //    0:	00000517          	auipc	t0,0x0
+    //    4:	00052503          	lw	t0,0(t0)
+    // #empty line
+    // 0x00000008 <main>:
+    //    8:	00000517          	auipc	t0,0x0
+    pub fn with_asm(asm: String) -> AsmMemory {
+        let mut funcs = vec![];
+        let mut data = BTreeMap::new();
+        let mut head = false;
+        let mut func: Func = Func {
+            name: "".to_string(),
+            addr: 0,
+        };
+        for line in asm.lines() {
+            if line.is_empty() {
+                head = true;
+                continue;
+            }
+            if head {
+                let (faddr, fname) = line.split_once(" ").unwrap();
+                func.addr = usize::from_str_radix(faddr, 16).unwrap();
+                func.name = fname[1..fname.len() - 2].to_string();
+                funcs.push(func.clone());
+                head = false;
+                continue;
+            }
+            let line = line.trim();
+            let addr = line.split_once(':').unwrap().0;
+            let addr = usize::from_str_radix(addr, 16).unwrap();
+            data.insert(addr, line.to_string());
+        }
+        AsmMemory { func: funcs, data }
+    }
+}
 
 pub struct AsmMemBuilder {
     pub addr: PortRef,
@@ -92,17 +142,19 @@ pub struct AsmMemBuilder {
     pub id_en: PortRef,
     pub id_clr: PortRef,
     pub ex_clr: PortRef,
-    pub mem: Vec<String>,
+    pub entry: usize,
+    pub mem: AsmMemory,
 }
 impl AsmMemBuilder {
-    pub fn new(mem: Vec<String>) -> Self {
+    pub fn new(entry: usize, asm: String) -> Self {
         Self {
             addr: bomb().into(),
             if_en: bomb().into(),
             id_en: bomb().into(),
             id_clr: bomb().into(),
             ex_clr: bomb().into(),
-            mem,
+            entry,
+            mem: AsmMemory::with_asm(asm),
         }
     }
 }
@@ -114,6 +166,7 @@ impl AsmBuilder for AsmMemBuilder {
             self.id_en,
             self.id_clr,
             self.ex_clr,
+            self.entry,
             self.mem,
         ))
         .into()
@@ -149,7 +202,8 @@ pub struct Asm {
     pub ex_clr_cache: u32,
     pub set: BTreeSet<u32>,
     pub stages: Vec<Option<u32>>,
-    pub mem: Vec<String>,
+    pub entry: usize,
+    pub mem: AsmMemory,
 }
 impl Asm {
     pub fn new(
@@ -158,10 +212,11 @@ impl Asm {
         id_en: PortRef,
         id_clr: PortRef,
         ex_clr: PortRef,
-        mem: Vec<String>,
+        entry: usize,
+        mem: AsmMemory,
     ) -> Self {
         let mut stages = vec![None; 5];
-        stages[0] = Some(0);
+        stages[0] = Some(entry as u32);
         Self {
             addr,
             addr_cache: 0,
@@ -173,15 +228,16 @@ impl Asm {
             id_clr_cache: 0,
             ex_clr,
             ex_clr_cache: 0,
-            set: BTreeSet::new(),
+            set: BTreeSet::from([entry as u32]),
             stages,
+            entry,
             mem,
         }
     }
 }
 impl Control for Asm {
     fn rasing_edge(&mut self) {
-        self.addr_cache = self.addr.read() / 4;
+        self.addr_cache = self.addr.read();
         self.if_en_cache = self.if_en.read();
         self.id_en_cache = self.id_en.read();
         self.id_clr_cache = self.id_clr.read();
@@ -209,18 +265,33 @@ impl Control for Asm {
     }
 }
 impl AsmPort for Asm {
-    fn read(&self, len_hint: usize) -> Vec<Inst> {
-        let mut start = self.set.first().copied().unwrap_or(0);
-        let mut end = self.set.last().copied().unwrap_or(0);
-        if end - start < len_hint as u32 {
-            let more = len_hint as u32 - (end - start);
-            start = start.saturating_sub(more / 2);
-            end = end.saturating_add(more - (more / 2));
-            end = end.min(self.mem.len() as u32);
+    fn read(&self, mut len_hint: usize) -> Vec<Inst> {
+        if self.set.is_empty() {
+            return vec![];
         }
-        let mut res = self.mem[start as usize..end as usize]
-            .iter()
-            .map(|asm| Inst {
+        len_hint *= 4;
+        let mut start = self.set.first().copied().unwrap() as usize;
+        let mut end = self.set.last().copied().unwrap() as usize;
+        if end - start < len_hint {
+            let more = len_hint - (end - start);
+            start = start.saturating_sub(more / 2);
+            end = start + len_hint;
+        }
+        let min = *self.mem.data.first_key_value().unwrap().0;
+        let max = *self.mem.data.last_key_value().unwrap().0;
+        if start < min {
+            end += min - start;
+            start = min;
+        } else if end > max {
+            let step = (end - max).min(start - min);
+            start -= step;
+            end -= step;
+        }
+        let mut res = self
+            .mem
+            .data
+            .range(start..=end)
+            .map(|(_, asm)| Inst {
                 asm: asm.clone(),
                 stage: Stage::None,
             })
@@ -236,8 +307,8 @@ impl AsmPort for Asm {
             ])
             .for_each(|(stage, stage_name)| {
                 if let Some(addr) = stage {
-                    if *addr >= start && *addr < end {
-                        res[*addr as usize - start as usize].stage = stage_name;
+                    if *addr >= start as u32 && *addr < end as u32 {
+                        res[((*addr) as usize - start) / 4].stage = stage_name;
                     }
                 }
             });
