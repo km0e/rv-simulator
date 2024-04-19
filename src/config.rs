@@ -12,8 +12,8 @@ pub struct Program {
 pub fn init() -> Result<Program, ()> {
     let args = args::init();
     let file = file::init();
-    let compiler = args.compiler.unwrap_or(file.compiler);
-    let objdump = args.objdump.unwrap_or(file.objdump);
+    let compiler = args.compiler_path.unwrap_or(file.compiler);
+    let objdump = args.objdump_path.unwrap_or(file.objdump);
     let file = args.file.unwrap_or(file.file);
     let mut pg = Program::default();
     let status = Command::new(compiler)

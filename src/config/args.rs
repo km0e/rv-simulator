@@ -4,9 +4,9 @@ use clap::Parser;
 #[command(version, about, long_about = None)]
 pub struct Args {
     #[arg(short, long)]
-    pub compiler: Option<String>,
+    pub compiler_path: Option<String>,
     #[arg(short, long)]
-    pub objdump: Option<String>,
+    pub objdump_path: Option<String>,
     #[arg(short, long)]
     pub file: Option<String>,
 }

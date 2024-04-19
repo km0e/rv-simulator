@@ -120,7 +120,7 @@ impl AsmMemory {
                 continue;
             }
             if head {
-                let (faddr, fname) = line.split_once(' ').unwrap();
+                let (faddr, fname) = line.split_once(" ").unwrap();
                 func.addr = usize::from_str_radix(faddr, 16).unwrap();
                 func.name = fname[1..fname.len() - 2].to_string();
                 funcs.push(func.clone());
@@ -128,9 +128,17 @@ impl AsmMemory {
                 continue;
             }
             let line = line.trim();
-            let addr = line.split_once(':').unwrap().0;
+            let (addr, inst) = line.split_once(':').unwrap();
             let addr = usize::from_str_radix(addr, 16).unwrap();
-            data.insert(addr, line.to_string());
+            let mut span = inst.split_whitespace();
+            let instx = span.next().unwrap().to_string();
+            let instopc = span.next().unwrap();
+            let mut inst = format!("{:10} {:8}", instx, instopc);
+            for op in span {
+                inst.push(' ');
+                inst.push_str(op);
+            }
+            data.insert(addr, inst);
         }
         AsmMemory { func: funcs, data }
     }
@@ -324,6 +332,7 @@ pub mod build {
     pub use super::AsmBuilder;
     pub use super::AsmMemBuilder;
     pub use super::AsmPortRef;
+    pub use super::Stage;
 
     pub use super::Connect as AsmConnect;
 }

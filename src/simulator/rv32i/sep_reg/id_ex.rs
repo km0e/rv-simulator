@@ -274,7 +274,7 @@ impl Control for IdEx {
             ),
             ("jal_", self.jal_.input()[0].1, self.jal_.output()[0].1),
             (
-                "branch_sel",
+                "npc_sel",
                 self.branch_sel.input()[0].1,
                 self.branch_sel.output()[0].1,
             ),
@@ -294,7 +294,7 @@ impl Control for IdEx {
                 self.alu_ctrl.output()[0].1,
             ),
             (
-                "branch_type",
+                "br_type",
                 self.branch_type.input()[0].1,
                 self.branch_type.output()[0].1,
             ),
@@ -316,7 +316,7 @@ impl Control for IdEx {
             ("rs2", self.rs2.input()[0].1, self.rs2.output()[0].1),
             ("opco", self.opco.input()[0].1, self.opco.output()[0].1),
             (
-                "load_signal",
+                "load",
                 self.load_signal.input()[0].1,
                 self.load_signal.output()[0].1,
             ),

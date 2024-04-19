@@ -150,7 +150,7 @@ impl Port for AluCtl {
         match opcode {
             0b011_0011 | 0b001_0011 => ((input << 1) >> 31) | ((input << 17) >> 28) | 1, //alu
             0b000_0011 | 0b010_0011 | 0b110_0011 | 0b110_1111 | 0b110_0111 | 0b001_0111 => 0b00001, //load, store, branch, jal, jalr, auipc
-            0b011_0111 => 0b10011, //lui
+            0b011_0111 => 0b10011, //lui, mix with slli
             _ => {
                 0
                 // unimplemented!();

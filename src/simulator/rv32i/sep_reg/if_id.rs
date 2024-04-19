@@ -81,7 +81,7 @@ impl Control for IfId {
             ("npc", self.npc.input()[0].1, self.npc.output()[0].1),
             ("pc", self.pc.input()[0].1, self.pc.output()[0].1),
             (
-                "instruction",
+                "inst",
                 self.instruction.input()[0].1,
                 self.instruction.output()[0].1,
             ),

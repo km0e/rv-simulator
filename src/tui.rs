@@ -156,10 +156,20 @@ impl App {
             .read(chunk.height as usize)
             .into_iter()
             .map(|inst| {
+                use crate::build::Stage;
+                let style = match inst.stage {
+                    Stage::Fetch => Style::default().fg(Color::Green),
+                    Stage::Decode => Style::default().fg(Color::Yellow),
+                    Stage::Execute => Style::default().fg(Color::Blue),
+                    Stage::Memory => Style::default().fg(Color::Magenta),
+                    Stage::WriteBack => Style::default().fg(Color::Cyan),
+                    _ => Style::default(),
+                };
                 Row::new(vec![
-                    Span::from(inst.stage.to_string()).to_right_aligned_line(),
-                    Span::from(inst.asm.to_string()).to_left_aligned_line(),
+                    Line::from(inst.stage.to_string()).right_aligned(),
+                    Line::from(inst.asm.to_string()).left_aligned(),
                 ])
+                .style(style)
             })
             .collect::<Vec<_>>();
         let table = Table::new(
@@ -181,10 +191,32 @@ impl App {
     }
 
     fn render_taps(&self, chunk: Rect, buffer: &mut Buffer) {
-        let tabs = Tabs::new(vec!["Sep Reg", "Signal", "Asm"])
+        let tabs = Tabs::new(vec!["Sep Reg", "Signal"])
             .highlight_style(Style::default().fg(Color::Yellow))
             .select(self.tab);
         tabs.render(chunk, buffer);
+    }
+    fn render_footer(&self, chunk: Rect, buffer: &mut Buffer) {
+        let text = vec![
+            Span::raw(" Quit :"),
+            Span::styled("<Q>", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(" Previous Cycle :"),
+            Span::styled("<LeftArrow>", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(" Next Cycle :"),
+            Span::styled(
+                "<RightArrow>",
+                Style::default().add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Switch Tabs :"),
+            Span::styled("<Tab>", Style::default().add_modifier(Modifier::BOLD)),
+        ];
+        Widget::render(
+            Line::from(text)
+                .style(Style::default().fg(Color::Gray))
+                .alignment(Alignment::Center),
+            chunk,
+            buffer,
+        );
     }
     fn render_frame(&self, frame: &mut Frame) {
         let chunck = Layout::default()
@@ -193,6 +225,7 @@ impl App {
                 Constraint::Length(1),
                 Constraint::Length(24),
                 Constraint::Fill(1),
+                Constraint::Length(1),
             ])
             .split(frame.size());
         self.render_taps(chunck[0], frame.buffer_mut());
@@ -202,6 +235,7 @@ impl App {
             _ => {}
         }
         self.render_asm(chunck[2], frame.buffer_mut());
+        self.render_footer(chunck[3], frame.buffer_mut());
     }
 
     /// updates the application's state based on user input
@@ -220,7 +254,7 @@ impl App {
     fn handle_key_event(&mut self, key_event: KeyEvent) {
         match key_event.code {
             KeyCode::Char('q') => self.exit(),
-            KeyCode::Tab => self.tab = (self.tab + 1) % 3,
+            KeyCode::Tab => self.tab = (self.tab + 1) % 2,
             KeyCode::Left => self.prec_cycle(),
             KeyCode::Right => self.next_cycle(),
             _ => {}
