@@ -1,5 +1,5 @@
 use goblin::{elf, Object};
-use std::{fs::read_to_string, os, process::Command};
+use std::process::Command;
 mod args;
 mod file;
 #[derive(Debug, Default, Clone)]
