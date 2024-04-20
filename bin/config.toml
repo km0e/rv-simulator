@@ -1,3 +1,3 @@
-compiler = "riscv32-unknown-elf-gcc"
-objdump = "riscv32-unknown-elf-objdump"
+compiler = "riscv64-unknown-elf-gcc"
+objdump = "riscv64-unknown-elf-objdump"
 file = "main.c"

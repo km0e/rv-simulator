@@ -16,7 +16,7 @@ pub fn init() -> Result<Program, String> {
     let objdump = args.objdump_path.unwrap_or(file.objdump);
     let file = args.file.unwrap_or(file.file);
     let mut pg = Program::default();
-    let output = Command::new(compiler)
+    let output = Command::new(&compiler)
         .args([
             "-march=rv32i",
             "-mabi=ilp32",
@@ -31,7 +31,7 @@ pub fn init() -> Result<Program, String> {
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .output()
-        .unwrap();
+        .map_err(|e| format!("Failed to use compiler {}: {}", compiler, e))?;
     if !output.status.success() {
         return Err(output.stderr.iter().map(|&x| x as char).collect());
     }

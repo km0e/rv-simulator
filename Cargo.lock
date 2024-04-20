@@ -846,9 +846,9 @@ dependencies = [
 
 [[package]]
 name = "xcfg-rs"
-version = "0.2.3"
+version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "40062c9a7968231efe41dc9a2f2fc54afba56da79001900b96c87b1e43a7e3bf"
+checksum = "5c3f93ebcde1ccbc1dcc248dd1c21c8c7b4bff51a273de42efb5138fa6cac082"
 dependencies = [
  "serde",
  "serde_yaml",
